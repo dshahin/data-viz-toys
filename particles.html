@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Life with Tabular Controls</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+            border: 1px solid #333;
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 350px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #555;
+        }
+        .slider-container {
+            margin: 12px 0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 12px;
+            border-radius: 6px;
+            margin: 5px 0;
+        }
+        .stats {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+        }
+        .rules-table {
+            margin-top: 20px;
+            border-top: 1px solid #444;
+            padding-top: 15px;
+            width: 100%;
+        }
+        .rule-group {
+            margin-bottom: 15px;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .rule-group-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .type-color {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .rule-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .rule-label {
+            width: 80px;
+            display: flex;
+            align-items: center;
+        }
+        .rule-slider {
+            flex-grow: 1;
+            margin: 0 10px;
+        }
+        .rule-value {
+            width: 40px;
+            text-align: right;
+        }
+        h3, h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 15px;
+        }
+        .global-controls {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        /* Custom slider handles */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="controls">
+        <h3>Particle Life Simulation</h3>
+        
+        <div class="global-controls">
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Particle Count</span>
+                    <span id="particleCountValue">500</span>
+                </div>
+                <input type="range" id="particleCountSlider" min="50" max="2000" value="500" step="50">
+            </div>
+            
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Max Force</span>
+                    <span id="maxForceValue">0.5</span>
+                </div>
+                <input type="range" id="maxForceSlider" min="0.1" max="2" value="0.5" step="0.1">
+            </div>
+            
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Interaction Range</span>
+                    <span id="interactionRangeValue">100</span>
+                </div>
+                <input type="range" id="interactionRangeSlider" min="50" max="300" value="100" step="10">
+            </div>
+            
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Friction</span>
+                    <span id="frictionValue">0.95</span>
+                </div>
+                <input type="range" id="frictionSlider" min="0.8" max="0.99" value="0.95" step="0.01">
+            </div>
+        </div>
+        
+        <div class="rules-table">
+            <h4>Particle Interaction Rules</h4>
+            <div id="rulesList"></div>
+        </div>
+        
+        <div class="buttons">
+            <button id="resetBtn">Reset Simulation</button>
+            <button id="addTypeBtn">Add Type</button>
+            <button id="removeTypeBtn">Remove Type</button>
+            <button id="randomizeRulesBtn">Randomize Rules</button>
+        </div>
+        
+        <div class="stats">
+            <div>Particle Types: <span id="typeCount">3</span></div>
+            <div>FPS: <span id="fps">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const resetBtn = document.getElementById('resetBtn');
+        const addTypeBtn = document.getElementById('addTypeBtn');
+        const removeTypeBtn = document.getElementById('removeTypeBtn');
+        const randomizeRulesBtn = document.getElementById('randomizeRulesBtn');
+        const typeCountEl = document.getElementById('typeCount');
+        const fpsEl = document.getElementById('fps');
+        const rulesListEl = document.getElementById('rulesList');
+        const particleCountSlider = document.getElementById('particleCountSlider');
+        const particleCountValue = document.getElementById('particleCountValue');
+        const maxForceSlider = document.getElementById('maxForceSlider');
+        const maxForceValue = document.getElementById('maxForceValue');
+        const interactionRangeSlider = document.getElementById('interactionRangeSlider');
+        const interactionRangeValue = document.getElementById('interactionRangeValue');
+        const frictionSlider = document.getElementById('frictionSlider');
+        const frictionValue = document.getElementById('frictionValue');
+
+        // Set canvas size
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Simulation parameters
+        let PARTICLE_COUNT = 500;
+        const MAX_TYPES = 8;
+        const MIN_TYPES = 2;
+        let particleTypes = 3;
+        let particles = [];
+        let rules = [];
+        
+        // Enhanced color palette
+        const colors = [
+            '#FF5252', // Red
+            '#FFEB3B', // Yellow
+            '#4CAF50', // Green
+            '#2196F3', // Blue
+            '#9C27B0', // Purple
+            '#FF9800', // Orange
+            '#00BCD4', // Cyan
+            '#E91E63', // Pink
+            '#8BC34A', // Light Green
+            '#3F51B5', // Indigo
+            '#F44336', // Deep Red
+            '#CDDC39', // Lime
+            '#009688', // Teal
+            '#673AB7', // Deep Purple
+            '#FF5722', // Deep Orange
+            '#607D8B'  // Blue Grey
+        ];
+
+        // Physics parameters
+        let FRICTION = 0.95;
+        const MIN_DISTANCE = 5;
+        let MAX_DISTANCE = 100;
+        let MAX_FORCE = 0.5;
+
+        // Performance tracking
+        let lastTime = 0;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let fps = 0;
+
+        class Particle {
+            constructor(x, y, type) {
+                this.x = x || Math.random() * canvas.width;
+                this.y = y || Math.random() * canvas.height;
+                this.vx = Math.random() * 2 - 1;
+                this.vy = Math.random() * 2 - 1;
+                this.type = type || Math.floor(Math.random() * particleTypes);
+                this.radius = 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                this.vx *= FRICTION;
+                this.vy *= FRICTION;
+                
+                if (this.x < 0) {
+                    this.x = 0;
+                    this.vx *= -1;
+                } else if (this.x > canvas.width) {
+                    this.x = canvas.width;
+                    this.vx *= -1;
+                }
+                
+                if (this.y < 0) {
+                    this.y = 0;
+                    this.vy *= -1;
+                } else if (this.y > canvas.height) {
+                    this.y = canvas.height;
+                    this.vy *= -1;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = colors[this.type % colors.length];
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initRules() {
+            rules = [];
+            for (let i = 0; i < particleTypes; i++) {
+                rules[i] = [];
+                for (let j = 0; j < particleTypes; j++) {
+                    rules[i][j] = Math.random() * 2 - 1;
+                    if (i === j) {
+                        rules[i][j] = 0.5 + Math.random() * 0.5;
+                    }
+                }
+            }
+            updateRulesList();
+        }
+
+        function updateRulesList() {
+            rulesListEl.innerHTML = '';
+            
+            for (let i = 0; i < particleTypes; i++) {
+                const group = document.createElement('div');
+                group.className = 'rule-group';
+                
+                const header = document.createElement('div');
+                header.className = 'rule-group-header';
+                header.innerHTML = `
+                    <span class="type-color" style="background-color: ${colors[i % colors.length]}"></span>
+                    Type ${i+1} Interactions
+                `;
+                group.appendChild(header);
+                
+                for (let j = 0; j < particleTypes; j++) {
+                    const item = document.createElement('div');
+                    item.className = 'rule-item';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'rule-label';
+                    label.innerHTML = `
+                        <span class="type-color" style="background-color: ${colors[j % colors.length]}"></span>
+                        Type ${j+1}
+                    `;
+                    item.appendChild(label);
+                    
+                    const sliderContainer = document.createElement('div');
+                    sliderContainer.className = 'rule-slider';
+                    
+                    const slider = document.createElement('input');
+                    slider.type = 'range';
+                    slider.min = '-1';
+                    slider.max = '1';
+                    slider.step = '0.05';
+                    slider.value = rules[i][j];
+                    
+                    // Color the slider thumb
+                    const sliderColor = colors[j % colors.length];
+                    slider.style.setProperty('--thumb-color', sliderColor);
+                    slider.style.background = `
+                        linear-gradient(to right, 
+                        #f00 0%, 
+                        #fff 50%, 
+                        #0f0 100%)
+                    `;
+                    
+                    // Apply custom thumb color
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        #${slider.id}::-webkit-slider-thumb {
+                            background: ${sliderColor};
+                        }
+                        #${slider.id}::-moz-range-thumb {
+                            background: ${sliderColor};
+                        }
+                        #${slider.id}::-ms-thumb {
+                            background: ${sliderColor};
+                        }
+                    `;
+                    document.head.appendChild(style);
+                    
+                    slider.addEventListener('input', (e) => {
+                        rules[i][j] = parseFloat(e.target.value);
+                        value.textContent = rules[i][j].toFixed(2);
+                    });
+                    
+                    sliderContainer.appendChild(slider);
+                    item.appendChild(sliderContainer);
+                    
+                    const value = document.createElement('div');
+                    value.className = 'rule-value';
+                    value.textContent = rules[i][j].toFixed(2);
+                    item.appendChild(value);
+                    
+                    group.appendChild(item);
+                }
+                
+                rulesListEl.appendChild(group);
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function applyRules() {
+            for (let i = 0; i < particles.length; i++) {
+                const p1 = particles[i];
+                
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p2 = particles[j];
+                    
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 0 && distance < MAX_DISTANCE) {
+                        const force = rules[p1.type][p2.type];
+                        const directionX = dx / distance;
+                        const directionY = dy / distance;
+                        
+                        const strength = force * (1 - (distance - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE));
+                        
+                        if (distance < MIN_DISTANCE) {
+                            const repelStrength = (MIN_DISTANCE - distance) / MIN_DISTANCE;
+                            p1.vx -= directionX * repelStrength * 0.5;
+                            p1.vy -= directionY * repelStrength * 0.5;
+                            p2.vx += directionX * repelStrength * 0.5;
+                            p2.vy += directionY * repelStrength * 0.5;
+                        } else if (Math.abs(strength) > 0.01) {
+                            const limitedStrength = Math.max(-MAX_FORCE, Math.min(MAX_FORCE, strength));
+                            
+                            p1.vx += directionX * limitedStrength;
+                            p1.vy += directionY * limitedStrength;
+                            p2.vx -= directionX * limitedStrength;
+                            p2.vy -= directionY * limitedStrength;
+                        }
+                    }
+                }
+            }
+        }
+
+        function update() {
+            applyRules();
+            
+            for (const particle of particles) {
+                particle.update();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (const particle of particles) {
+                particle.draw();
+            }
+        }
+
+        function animate(timestamp) {
+            frameCount++;
+            if (timestamp >= lastFpsUpdate + 1000) {
+                fps = Math.round((frameCount * 1000) / (timestamp - lastFpsUpdate));
+                fpsEl.textContent = fps;
+                frameCount = 0;
+                lastFpsUpdate = timestamp;
+            }
+            
+            update();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        function resetSimulation() {
+            initRules();
+            initParticles();
+            typeCountEl.textContent = particleTypes;
+        }
+
+        function addParticleType() {
+            if (particleTypes < MAX_TYPES) {
+                particleTypes++;
+                resetSimulation();
+            }
+        }
+
+        function removeParticleType() {
+            if (particleTypes > MIN_TYPES) {
+                particleTypes--;
+                resetSimulation();
+            }
+        }
+
+        function randomizeRules() {
+            initRules();
+        }
+
+        // Event listeners
+        resetBtn.addEventListener('click', resetSimulation);
+        addTypeBtn.addEventListener('click', addParticleType);
+        removeTypeBtn.addEventListener('click', removeParticleType);
+        randomizeRulesBtn.addEventListener('click', randomizeRules);
+
+        // Slider event listeners
+        particleCountSlider.addEventListener('input', (e) => {
+            PARTICLE_COUNT = parseInt(e.target.value);
+            particleCountValue.textContent = PARTICLE_COUNT;
+            initParticles();
+        });
+
+        maxForceSlider.addEventListener('input', (e) => {
+            MAX_FORCE = parseFloat(e.target.value);
+            maxForceValue.textContent = MAX_FORCE.toFixed(1);
+        });
+
+        interactionRangeSlider.addEventListener('input', (e) => {
+            MAX_DISTANCE = parseInt(e.target.value);
+            interactionRangeValue.textContent = MAX_DISTANCE;
+        });
+
+        frictionSlider.addEventListener('input', (e) => {
+            FRICTION = parseFloat(e.target.value);
+            frictionValue.textContent = FRICTION.toFixed(2);
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Initialize and start simulation
+        resetSimulation();
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cellular Automata Explorer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            image-rendering: pixelated;
+            background-color: #fff;
+        }
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 5px;
+        }
+        select, button, input {
+            padding: 5px;
+            margin: 2px;
+        }
+        .color-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .color-control {
+            display: flex;
+            align-items: center;
+        }
+        .rule-display {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .rule-pattern {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .rule-pattern-cells {
+            display: flex;
+        }
+        .rule-cell {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+        .rule-result {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ddd;
+            margin-top: 5px;
+        }
+        .rule-number {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .rule-title {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cellular Automata Explorer</h1>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label for="rule">Rule (0-255):</label>
+            <input type="number" id="rule" min="0" max="255" value="30">
+        </div>
+        
+        <div class="control-group">
+            <label for="width">Width:</label>
+            <input type="number" id="width" min="10" max="1000" value="800">
+        </div>
+        
+        <div class="control-group">
+            <label for="height">Height:</label>
+            <input type="number" id="height" min="10" max="1000" value="800">
+        </div>
+        
+        <div class="control-group">
+            <button id="random">Random Rule</button>
+            <button id="run">Run</button>
+            <button id="reset">Reset</button>
+        </div>
+    </div>
+    
+    <div class="color-controls">
+        <div class="color-control">
+            <label for="alive-color">Alive: </label>
+            <input type="color" id="alive-color" value="#000000">
+        </div>
+        <div class="color-control">
+            <label for="dead-color">Dead: </label>
+            <input type="color" id="dead-color" value="#ffffff">
+        </div>
+        <div class="color-control">
+            <label for="bg-color">Background: </label>
+            <input type="color" id="bg-color" value="#ffffff">
+        </div>
+    </div>
+    
+    <div class="rule-title">Current Rule Visualization (click results to toggle)</div>
+    <div id="rule-visualization" class="rule-display"></div>
+    
+    <canvas id="automata"></canvas>
+    
+    <div>
+        <p>Try famous rules: 
+            <button class="preset" data-rule="30">30 (Chaotic)</button>
+            <button class="preset" data-rule="90">90 (Fractal)</button>
+            <button class="preset" data-rule="110">110 (Turing Complete)</button>
+            <button class="preset" data-rule="184">184 (Traffic)</button>
+        </p>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('automata');
+        const ctx = canvas.getContext('2d');
+        const ruleVisualization = document.getElementById('rule-visualization');
+        const ruleInput = document.getElementById('rule');
+        const aliveColorInput = document.getElementById('alive-color');
+        const deadColorInput = document.getElementById('dead-color');
+        const bgColorInput = document.getElementById('bg-color');
+        
+        let width = 200;
+        let height = 200;
+        let rule = 30;
+        let grid = [];
+        let isRunning = false;
+        let animationId = null;
+        
+        // Colors with defaults
+        let aliveColor = '#000000';
+        let deadColor = '#ffffff';
+        let bgColor = '#ffffff';
+        
+        function init() {
+            width = parseInt(document.getElementById('width').value);
+            height = parseInt(document.getElementById('height').value);
+            rule = parseInt(ruleInput.value);
+            
+            // Update colors
+            aliveColor = aliveColorInput.value;
+            deadColor = deadColorInput.value;
+            bgColor = bgColorInput.value;
+            
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.backgroundColor = bgColor;
+            
+            // Initialize grid with all zeros except center cell
+            grid = Array(height).fill().map(() => Array(width).fill(0));
+            grid[0][Math.floor(width/2)] = 1;
+            
+            drawGrid();
+            updateRuleVisualization();
+        }
+        
+        function drawGrid() {
+            const cellWidth = canvas.width / width;
+            const cellHeight = canvas.height / height;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    ctx.fillStyle = grid[y][x] === 1 ? aliveColor : deadColor;
+                    ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+                }
+            }
+        }
+        
+        function applyRule() {
+            for (let y = 1; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    // Get neighborhood (with wrap-around)
+                    const left = grid[y-1][(x-1 + width) % width];
+                    const center = grid[y-1][x];
+                    const right = grid[y-1][(x+1) % width];
+                    
+                    // Convert neighborhood to rule index (0-7)
+                    const neighborhood = (left << 2) | (center << 1) | right;
+                    
+                    // Apply rule
+                    grid[y][x] = (rule >> neighborhood) & 1;
+                }
+            }
+            
+            drawGrid();
+        }
+        
+        function updateRuleVisualization() {
+            ruleVisualization.innerHTML = '';
+            
+            // Create visualization for all 8 possible neighborhood patterns
+            for (let pattern = 0; pattern < 8; pattern++) {
+                const patternContainer = document.createElement('div');
+                patternContainer.className = 'rule-pattern';
+                
+                const patternCells = document.createElement('div');
+                patternCells.className = 'rule-pattern-cells';
+                
+                // Create cells for the pattern (left, center, right)
+                for (let i = 2; i >= 0; i--) {
+                    const cell = document.createElement('div');
+                    const cellValue = (pattern >> i) & 1;
+                    cell.className = 'rule-cell';
+                    cell.style.backgroundColor = cellValue ? aliveColor : deadColor;
+                    cell.style.borderColor = cellValue ? darkenColor(aliveColor) : darkenColor(deadColor);
+                    patternCells.appendChild(cell);
+                }
+                
+                // Create cell for the result
+                const resultCell = document.createElement('div');
+                const resultValue = (rule >> pattern) & 1;
+                resultCell.className = 'rule-result';
+                resultCell.style.backgroundColor = resultValue ? aliveColor : deadColor;
+                resultCell.style.borderColor = resultValue ? darkenColor(aliveColor) : darkenColor(deadColor);
+                resultCell.dataset.pattern = pattern;
+                resultCell.dataset.value = resultValue;
+                
+                // Add click handler to toggle result
+                resultCell.addEventListener('click', function() {
+                    const pattern = parseInt(this.dataset.pattern);
+                    const currentValue = parseInt(this.dataset.value);
+                    const newValue = 1 - currentValue;
+                    
+                    // Update the rule
+                    if (newValue) {
+                        rule |= (1 << pattern);  // Set bit
+                    } else {
+                        rule &= ~(1 << pattern); // Clear bit
+                    }
+                    
+                    // Update UI
+                    ruleInput.value = rule;
+                    this.dataset.value = newValue;
+                    this.style.backgroundColor = newValue ? aliveColor : deadColor;
+                    this.style.borderColor = newValue ? darkenColor(aliveColor) : darkenColor(deadColor);
+                    
+                    // Reset and show new rule
+                    if (!isRunning) {
+                        init();
+                    }
+                });
+                
+                // Add pattern number label
+                const patternLabel = document.createElement('div');
+                patternLabel.className = 'rule-number';
+                patternLabel.textContent = pattern;
+                
+                patternContainer.appendChild(patternCells);
+                patternContainer.appendChild(resultCell);
+                patternContainer.appendChild(patternLabel);
+                ruleVisualization.appendChild(patternContainer);
+            }
+        }
+        
+        function darkenColor(hex, amount = 30) {
+            // Simple function to darken a color for borders
+            let r = parseInt(hex.substring(1, 3), 16);
+            let g = parseInt(hex.substring(3, 5), 16);
+            let b = parseInt(hex.substring(5, 7), 16);
+            
+            r = Math.max(0, r - amount);
+            g = Math.max(0, g - amount);
+            b = Math.max(0, b - amount);
+            
+            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        }
+        
+        function runAutomata() {
+            if (!isRunning) {
+                isRunning = true;
+                document.getElementById('run').textContent = 'Stop';
+                animate();
+            } else {
+                isRunning = false;
+                document.getElementById('run').textContent = 'Run';
+                cancelAnimationFrame(animationId);
+            }
+        }
+        
+        function animate() {
+            applyRule();
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        document.getElementById('run').addEventListener('click', runAutomata);
+        document.getElementById('reset').addEventListener('click', init);
+        document.getElementById('random').addEventListener('click', () => {
+            rule = Math.floor(Math.random() * 256);
+            ruleInput.value = rule;
+            init();
+        });
+        
+        ruleInput.addEventListener('change', () => {
+            rule = parseInt(ruleInput.value);
+            updateRuleVisualization();
+            if (!isRunning) {
+                init();
+            }
+        });
+        
+        // Color change listeners
+        aliveColorInput.addEventListener('input', () => {
+            aliveColor = aliveColorInput.value;
+            if (!isRunning) {
+                init();
+            } else {
+                drawGrid();
+            }
+            updateRuleVisualization();
+        });
+        
+        deadColorInput.addEventListener('input', () => {
+            deadColor = deadColorInput.value;
+            if (!isRunning) {
+                init();
+            } else {
+                drawGrid();
+            }
+            updateRuleVisualization();
+        });
+        
+        bgColorInput.addEventListener('input', () => {
+            bgColor = bgColorInput.value;
+            canvas.style.backgroundColor = bgColor;
+        });
+        
+        document.querySelectorAll('.preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                rule = parseInt(btn.dataset.rule);
+                ruleInput.value = rule;
+                init();
+            });
+        });
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
