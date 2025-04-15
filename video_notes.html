@@ -76,10 +76,12 @@
         .delete-btn {
             color: #f44336;
         }
+        .edit-container {
+            margin-top: 5px;
+        }
         .edit-input {
             width: calc(100% - 20px);
             padding: 5px;
-            margin-top: 5px;
         }
         .save-btn {
             background-color: #4CAF50;
@@ -191,6 +193,7 @@
         let currentVideoFilename = '';
         let currentNotes = [];
         let activeSubtitle = null;
+        let isEditing = false;
         
         // Event listeners
         uploadBtn.addEventListener('click', () => fileInput.click());
@@ -422,13 +425,15 @@
             li.appendChild(dateSpan);
             li.appendChild(actionsDiv);
             
-            // Click handler to jump to time
+            // Click handler to jump to time (only when not editing)
             li.addEventListener('click', (e) => {
+                if (isEditing) return;
+                
                 // Don't jump if clicking on action buttons
                 if (e.target.classList.contains('edit-btn') || 
                     e.target.classList.contains('delete-btn') ||
                     e.target.classList.contains('save-btn') ||
-                    e.target.tagName === 'INPUT') {
+                    e.target.tagName === 'TEXTAREA') {
                     return;
                 }
                 
@@ -440,6 +445,7 @@
             // Edit button handler
             editBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                isEditing = true;
                 showEditInterface(li, note, index);
             });
             
@@ -474,8 +480,11 @@
             textSpan.style.display = 'none';
             li.insertBefore(editDiv, li.querySelector('.note-date'));
             
+            // Focus on the textarea
+            editInput.focus();
+            
             // Save button handler
-            saveBtn.addEventListener('click', () => {
+            const saveHandler = () => {
                 const updatedText = editInput.value.trim();
                 if (updatedText) {
                     const updatedNote = {
@@ -493,7 +502,20 @@
                 // Restore display
                 textSpan.style.display = 'inline';
                 li.removeChild(editDiv);
-            });
+                isEditing = false;
+                
+                // Remove event listeners
+                saveBtn.removeEventListener('click', saveHandler);
+                editInput.removeEventListener('blur', blurHandler);
+            };
+            
+            const blurHandler = () => {
+                if (document.activeElement === editInput) return;
+                saveHandler();
+            };
+            
+            saveBtn.addEventListener('click', saveHandler);
+            editInput.addEventListener('blur', blurHandler);
         }
         
         // Handle note deletion
@@ -522,7 +544,7 @@
         
         // Check and show subtitles at the correct times
         function checkSubtitles() {
-            if (!currentVideoChecksum || !currentNotes.length) return;
+            if (!currentVideoChecksum || !currentNotes.length || isEditing) return;
             
             const currentTime = video.currentTime;
             
