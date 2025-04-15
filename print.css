@@ -1,0 +1,103 @@
+/* print.css */
+@media print {
+    /* Hide unnecessary elements */
+    #upload-container,
+    #controls,
+    #add-note,
+    .note-actions,
+    .import-export {
+        display: none !important;
+    }
+
+    /* Make video container print-friendly */
+    #video-container {
+        display: block !important;
+        page-break-inside: avoid;
+    }
+
+    /* Style the video element for printing */
+    video {
+        display: none; /* Hide actual video element */
+    }
+
+    /* Create a placeholder for the video */
+    #video-wrapper::after {
+        content: "Video: " attr(data-filename);
+        display: block;
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 1em;
+        border: 1px solid #ccc;
+        padding: 10px;
+        background-color: #f9f9f9;
+    }
+
+    /* Style notes for printing */
+    #notes-list {
+        page-break-inside: avoid;
+    }
+
+    .note-item {
+        border-bottom: 1px solid #ddd;
+        padding: 8px 0;
+        page-break-inside: avoid;
+    }
+
+    .note-time {
+        font-weight: bold;
+        color: #333;
+    }
+
+    .note-text {
+        margin-left: 10px;
+    }
+
+    .note-date {
+        display: block;
+        font-size: 0.8em;
+        color: #666;
+        margin-left: 20px;
+    }
+
+    /* Page layout */
+    body {
+        font-size: 12pt;
+        line-height: 1.5;
+        color: #000;
+        background: none;
+        padding: 20px;
+    }
+
+    /* Header styling */
+    #app-title {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    #app-title h1 {
+        font-size: 18pt;
+        margin-bottom: 5px;
+    }
+
+    #video-filename {
+        font-size: 14pt;
+    }
+
+    /* Remove background colors and shadows */
+    * {
+        background: transparent !important;
+        color: #000 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    /* Page breaks */
+    h3 {
+        page-break-after: avoid;
+    }
+
+    /* Links */
+    a {
+        text-decoration: underline;
+    }
+}

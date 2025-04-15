@@ -144,7 +144,27 @@
             font-size: 0.9em;
             color: #666;
         }
+        .import-export {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .import-export button {
+            margin-right: 10px;
+            padding: 8px 15px;
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .import-export button:hover {
+            background-color: #f57c00;
+        }
+        #file-json {
+            display: none;
+        }
     </style>
+    <link rel="stylesheet" href="print.css" media="print">
 </head>
 <body>
     <div id="app-title">
@@ -172,6 +192,13 @@
         
         <h3>Saved Notes:</h3>
         <ul id="notes-list"></ul>
+        
+        <div class="import-export">
+            <h3>Import/Export Notes</h3>
+            <button id="export-notes">Export Notes as JSON</button>
+            <button id="import-notes">Import Notes from JSON</button>
+            <input type="file" id="file-json" accept=".json">
+        </div>
     </div>
 
     <script>
@@ -187,6 +214,13 @@
         const subtitle = document.getElementById('subtitle');
         const currentTimeDisplay = document.getElementById('current-time');
         const videoFilenameDisplay = document.getElementById('video-filename');
+        const exportNotesBtn = document.getElementById('export-notes');
+        const importNotesBtn = document.getElementById('import-notes');
+        const fileJsonInput = document.getElementById('file-json');
+
+        const MIN_SUBTITLE_DURATION = 5000; // 5 seconds minimum
+        const MAX_SUBTITLE_DURATION = 30000; // 30 seconds maximum
+        const WORDS_PER_SECOND = 2; // Reading speed factor
         
         // Current video checksum and filename
         let currentVideoChecksum = null;
@@ -201,6 +235,9 @@
         addNoteBtn.addEventListener('click', addNote);
         video.addEventListener('timeupdate', updateTimeDisplay);
         video.addEventListener('timeupdate', checkSubtitles);
+        exportNotesBtn.addEventListener('click', exportNotes);
+        importNotesBtn.addEventListener('click', () => fileJsonInput.click());
+        fileJsonInput.addEventListener('change', importNotes);
         
         // Drag and drop handlers
         uploadContainer.addEventListener('dragover', (e) => {
@@ -542,27 +579,48 @@
             currentTimeDisplay.textContent = `Current time: ${formatTime(video.currentTime)}`;
         }
         
-        // Check and show subtitles at the correct times
+        // Modified checkSubtitles function with dynamic duration
         function checkSubtitles() {
             if (!currentVideoChecksum || !currentNotes.length || isEditing) return;
             
             const currentTime = video.currentTime;
             
-            // Check if we're within any note's display window (5 seconds)
-            const activeNote = currentNotes.find(note => 
-                currentTime >= note.time && currentTime <= note.time + 5
-            );
+            // Check if we're within any note's display window
+            const activeNote = currentNotes.find(note => {
+                const duration = calculateSubtitleDuration(note.text);
+                return currentTime >= note.time && currentTime <= note.time + (duration / 1000);
+            });
             
-            if (activeNote && (!activeSubtitle || activeSubtitle.time !== activeNote.time)) {
-                showSubtitle(activeNote.text, activeNote.time);
-                activeSubtitle = activeNote;
-            } else if (!activeNote && activeSubtitle) {
+            if (activeNote) {
+                const duration = calculateSubtitleDuration(activeNote.text);
+                const noteEndTime = activeNote.time + (duration / 1000);
+                
+                if (!activeSubtitle || activeSubtitle.time !== activeNote.time) {
+                    showSubtitle(activeNote.text, activeNote.time);
+                    activeSubtitle = {
+                        ...activeNote,
+                        endTime: noteEndTime
+                    };
+                }
+            } else if (activeSubtitle) {
                 hideSubtitle();
                 activeSubtitle = null;
             }
         }
+
+        // Calculate subtitle duration based on text length
+        function calculateSubtitleDuration(text) {
+            const wordCount = text.split(/\s+/).length;
+            // Calculate base duration (1 second per 2 words + 5 seconds minimum)
+            const baseDuration = Math.max(
+                MIN_SUBTITLE_DURATION, 
+                (wordCount / WORDS_PER_SECOND) * 1000
+            );
+            // Cap at maximum duration
+            return Math.min(baseDuration, MAX_SUBTITLE_DURATION);
+        }
         
-        // Show subtitle with text
+        // Modified showSubtitle function
         function showSubtitle(text, time) {
             subtitle.textContent = text;
             subtitle.style.display = 'block';
@@ -574,12 +632,89 @@
             subtitle.style.display = 'none';
         }
         
+        // Export notes as JSON file
+        function exportNotes() {
+            if (!currentVideoChecksum) {
+                alert('No video loaded to export notes from');
+                return;
+            }
+            
+            const savedNotes = JSON.parse(localStorage.getItem('videoNotes') || '{}');
+            const videoNotes = savedNotes[currentVideoChecksum] || [];
+            
+            if (videoNotes.length === 0) {
+                alert('No notes to export for this video');
+                return;
+            }
+            
+            const exportData = {
+                videoChecksum: currentVideoChecksum,
+                videoFilename: currentVideoFilename,
+                notes: videoNotes
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `video_notes_${currentVideoFilename.replace(/\.[^/.]+$/, '')}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+        
+        // Import notes from JSON file
+        function importNotes(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importData = JSON.parse(e.target.result);
+                    
+                    if (!importData.videoChecksum || !Array.isArray(importData.notes)) {
+                        throw new Error('Invalid notes file format');
+                    }
+                    
+                    if (importData.videoChecksum !== currentVideoChecksum) {
+                        if (confirm(`These notes were created for a different video (${importData.videoFilename}). Import anyway?`)) {
+                            currentVideoChecksum = importData.videoChecksum;
+                            currentVideoFilename = importData.videoFilename;
+                            videoFilenameDisplay.textContent = currentVideoFilename;
+                        } else {
+                            return;
+                        }
+                    }
+                    
+                    const savedNotes = JSON.parse(localStorage.getItem('videoNotes') || '{}');
+                    savedNotes[currentVideoChecksum] = importData.notes;
+                    localStorage.setItem('videoNotes', JSON.stringify(savedNotes));
+                    
+                    // Reload notes
+                    currentNotes = importData.notes;
+                    loadNotes();
+                    
+                    alert(`Successfully imported ${importData.notes.length} notes`);
+                } catch (error) {
+                    console.error('Error importing notes:', error);
+                    alert('Error importing notes: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset input to allow re-importing same file
+            event.target.value = '';
+        }
+        
         // Format time as MM:SS
         function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
+        document.getElementById('video-wrapper').dataset.filename = currentVideoFilename;
     </script>
 </body>
 </html>
