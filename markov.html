@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Markov Text Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        label {
+            margin-right: 10px;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-top: 20px;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Enhanced Markov Text Generator</h1>
+    
+    <div class="container">
+        <label for="inputText">Enter training text:</label>
+        <textarea id="inputText" placeholder="Paste or type some text here...">The quick brown fox jumps over the lazy dog. The quick fox is very quick and jumps very high over the lazy dog who just sleeps all day. Quick foxes are better at jumping than lazy dogs.</textarea>
+        
+        <div class="controls">
+            <label for="order">Markov Order:</label>
+            <input type="number" id="order" min="1" max="5" value="2">
+            
+            <label for="length">Output Length:</label>
+            <input type="number" id="length" min="10" max="1000" value="200">
+            
+            <button id="generate">Generate Text</button>
+        </div>
+        
+        <div class="section-title">Generated Text:</div>
+        <div id="output">Generated text will appear here...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const generateBtn = document.getElementById('generate');
+            const inputText = document.getElementById('inputText');
+            const outputDiv = document.getElementById('output');
+            const orderInput = document.getElementById('order');
+            const lengthInput = document.getElementById('length');
+            
+            generateBtn.addEventListener('click', generateText);
+            
+            // Initialize with some text
+            generateText();
+            
+            function generateText() {
+                const text = inputText.value.trim();
+                if (!text) {
+                    outputDiv.textContent = "Please enter some text first.";
+                    return;
+                }
+                
+                const order = parseInt(orderInput.value);
+                const length = parseInt(lengthInput.value);
+                
+                if (order < 1 || order > 5) {
+                    outputDiv.textContent = "Order must be between 1 and 5.";
+                    return;
+                }
+                
+                if (length < 10 || length > 1000) {
+                    outputDiv.textContent = "Length must be between 10 and 1000.";
+                    return;
+                }
+                
+                // Process text to find sentence starters and build Markov chain
+                const { markovChain, sentenceStarters } = processText(text, order);
+                
+                if (Object.keys(markovChain).length === 0) {
+                    outputDiv.textContent = "Input text is too short for the selected order.";
+                    return;
+                }
+                
+                // Generate new text with proper sentence starts
+                const generatedText = generateFromMarkovChain(markovChain, sentenceStarters, order, length);
+                
+                outputDiv.textContent = generatedText;
+            }
+            
+            function processText(text, order) {
+                // Split text into sentences (naive approach)
+                const sentences = text.split(/(?<=[.!?])\s+/);
+                const tokens = text.split(/\s+/);
+                const chain = {};
+                const sentenceStarters = new Set();
+                
+                // Record sentence-starting prefixes
+                sentences.forEach(sentence => {
+                    const sentenceTokens = sentence.split(/\s+/);
+                    if (sentenceTokens.length >= order) {
+                        const prefix = sentenceTokens.slice(0, order).join(' ').toLowerCase();
+                        sentenceStarters.add(prefix);
+                    }
+                });
+                
+                // Build Markov chain
+                for (let i = 0; i < tokens.length - order; i++) {
+                    const prefix = tokens.slice(i, i + order).join(' ').toLowerCase();
+                    const nextToken = tokens[i + order];
+                    
+                    if (!chain[prefix]) {
+                        chain[prefix] = [];
+                    }
+                    
+                    chain[prefix].push(nextToken);
+                }
+                
+                return { markovChain: chain, sentenceStarters: Array.from(sentenceStarters) };
+            }
+            
+            function generateFromMarkovChain(chain, sentenceStarters, order, length) {
+                let result = [];
+                
+                // Start with a random sentence-starting prefix
+                if (sentenceStarters.length > 0) {
+                    const randomStarter = sentenceStarters[
+                        Math.floor(Math.random() * sentenceStarters.length)
+                    ];
+                    result = randomStarter.split(' ');
+                    
+                    // Capitalize first word
+                    if (result.length > 0) {
+                        result[0] = capitalizeFirstLetter(result[0]);
+                    }
+                } else {
+                    // Fallback if no sentence starters found
+                    const prefixes = Object.keys(chain);
+                    const randomPrefix = prefixes[
+                        Math.floor(Math.random() * prefixes.length)
+                    ].split(' ');
+                    result = randomPrefix;
+                    
+                    // Capitalize first word
+                    if (result.length > 0) {
+                        result[0] = capitalizeFirstLetter(result[0]);
+                    }
+                }
+                
+                let currentPrefix = result.slice(-order).join(' ').toLowerCase();
+                
+                while (result.length < length) {
+                    const possibleNext = chain[currentPrefix];
+                    
+                    if (!possibleNext || possibleNext.length === 0) {
+                        // If we hit a dead end, try to start a new sentence
+                        if (sentenceStarters.length > 0) {
+                            const newStarter = sentenceStarters[
+                                Math.floor(Math.random() * sentenceStarters.length)
+                            ].split(' ');
+                            
+                            // Add period if previous text doesn't end with punctuation
+                            if (result.length > 0 && !/[.!?]$/.test(result[result.length - 1])) {
+                                result.push('.');
+                            }
+                            
+                            // Capitalize first word of new sentence
+                            newStarter[0] = capitalizeFirstLetter(newStarter[0]);
+                            result.push(...newStarter);
+                            currentPrefix = newStarter.slice(-order).join(' ').toLowerCase();
+                        } else {
+                            // Fallback to random prefix if no starters available
+                            const prefixes = Object.keys(chain);
+                            const randomPrefix = prefixes[
+                                Math.floor(Math.random() * prefixes.length)
+                            ].split(' ');
+                            result.push(...randomPrefix);
+                            currentPrefix = randomPrefix.join(' ').toLowerCase();
+                        }
+                        continue;
+                    }
+                    
+                    // Randomly select the next token
+                    const nextToken = possibleNext[Math.floor(Math.random() * possibleNext.length)];
+                    result.push(nextToken);
+                    
+                    // Update the current prefix
+                    const newPrefixParts = currentPrefix.split(' ').slice(1);
+                    newPrefixParts.push(nextToken.toLowerCase());
+                    currentPrefix = newPrefixParts.join(' ');
+                }
+                
+                // Ensure the output ends with punctuation
+                if (result.length > 0 && !/[.!?]$/.test(result[result.length - 1])) {
+                    result.push('.');
+                }
+                
+                // Join with spaces and fix any space before punctuation
+                let output = result.join(' ');
+                output = output.replace(/\s+([,.!?])/g, '$1');
+                
+                return output;
+            }
+            
+            function capitalizeFirstLetter(word) {
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }
+        });
+    </script>
+</body>
+</html>

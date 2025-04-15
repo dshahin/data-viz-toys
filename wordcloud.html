@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Cloud Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #wordCloud {
+            width: 100%;
+            min-height: 500px;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 20px;
+        }
+        .word {
+            display: inline-block;
+            margin: 5px;
+            padding: 3px 6px;
+            line-height: 1;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .word:hover {
+            color: #ff5722;
+            transform: scale(1.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .cloud-container {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Word Cloud Generator</h1>
+    <p>Enter your text below to generate a word cloud showing word frequencies:</p>
+    
+    <div class="controls">
+        <label for="minLength">Minimum word length:</label>
+        <input type="number" id="minLength" value="3" min="1" max="10">
+        
+        <label for="maxWords">Maximum number of words to show:</label>
+        <input type="number" id="maxWords" value="50" min="5" max="200">
+        
+        <label for="minFontSize">Minimum font size (px):</label>
+        <input type="number" id="minFontSize" value="12" min="8" max="30">
+        
+        <label for="maxFontSize">Maximum font size (px):</label>
+        <input type="number" id="maxFontSize" value="72" min="20" max="120">
+    </div>
+    
+    <textarea id="inputText" placeholder="Paste or type your text here...">The quick brown fox jumps over the lazy dog. The dog barks at the fox, but the fox keeps running. This is a simple example text that contains some repeated words to demonstrate how the word cloud works. Word clouds visualize word frequency - the more often a word appears, the larger it appears in the cloud. Try pasting your own text to see the results! Repeat repeat repeat some words more often to see them grow bigger in the cloud. The algorithm now properly packs words together without overlaps and keeps the most frequent words near the center.</textarea>
+    
+    <button onclick="generateWordCloud()">Generate Word Cloud</button>
+    
+    <div class="cloud-container">
+        <div id="wordCloud"></div>
+    </div>
+
+    <script>
+        function generateWordCloud() {
+            // Get input values
+            const inputText = document.getElementById('inputText').value;
+            const minLength = parseInt(document.getElementById('minLength').value);
+            const maxWords = parseInt(document.getElementById('maxWords').value);
+            const minFontSize = parseInt(document.getElementById('minFontSize').value);
+            const maxFontSize = parseInt(document.getElementById('maxFontSize').value);
+            
+            // Process the text
+            const words = processText(inputText, minLength);
+            
+            // Generate word cloud
+            createWordCloud(words, maxWords, minFontSize, maxFontSize);
+        }
+        
+        function processText(text, minLength) {
+            // Common words to exclude (you can expand this list)
+            const stopWords = new Set(['the', 'and', 'but', 'or', 'a', 'an', 'to', 'in', 'on', 'at', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'it', 'that', 'this']);
+            
+            // Remove punctuation and convert to lowercase
+            const cleanedText = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()'"“”‘’]/g, '')
+                                   .replace(/\s{2,}/g, ' ')
+                                   .toLowerCase();
+            
+            // Split into words and filter
+            const words = cleanedText.split(/\s+/)
+                .filter(word => word.length >= minLength && !stopWords.has(word));
+            
+            // Count word frequencies
+            const wordCount = {};
+            words.forEach(word => {
+                wordCount[word] = (wordCount[word] || 0) + 1;
+            });
+            
+            // Convert to array of objects and sort by frequency
+            const sortedWords = Object.keys(wordCount).map(word => ({
+                text: word,
+                count: wordCount[word]
+            })).sort((a, b) => b.count - a.count);
+            
+            return sortedWords;
+        }
+        
+        function createWordCloud(words, maxWords, minFontSize, maxFontSize) {
+            const cloud = document.getElementById('wordCloud');
+            cloud.innerHTML = '';
+            
+            // Limit number of words
+            const limitedWords = words.slice(0, maxWords);
+            
+            if (limitedWords.length === 0) {
+                cloud.textContent = "No words to display (try reducing minimum word length)";
+                return;
+            }
+            
+            // Find max and min counts for scaling
+            const maxCount = limitedWords[0].count;
+            const minCount = limitedWords[limitedWords.length - 1].count;
+            
+            // Generate colors
+            const colors = ['#3366cc', '#dc3912', '#ff9900', '#109618', '#990099', 
+                           '#0099c6', '#dd4477', '#66aa00', '#b82e2e', '#316395'];
+            
+            // Sort words by frequency (highest first) for placement priority
+            const sortedByFrequency = [...limitedWords].sort((a, b) => b.count - a.count);
+            
+            // Create word elements and calculate their dimensions
+            const wordElements = sortedByFrequency.map((wordObj, index) => {
+                const wordElement = document.createElement('div');
+                wordElement.className = 'word';
+                wordElement.textContent = wordObj.text;
+                
+                // Calculate font size based on frequency
+                const fontSize = calculateFontSize(wordObj.count, minCount, maxCount, minFontSize, maxFontSize);
+                wordElement.style.fontSize = `${fontSize}px`;
+                
+                // Assign color
+                wordElement.style.color = colors[index % colors.length];
+                
+                // Tooltip with count
+                wordElement.title = `Frequency: ${wordObj.count}`;
+                
+                // Temporarily add to DOM to measure
+                wordElement.style.visibility = 'hidden';
+                wordElement.style.position = 'absolute';
+                cloud.appendChild(wordElement);
+                
+                // Get dimensions
+                const width = wordElement.offsetWidth;
+                const height = wordElement.offsetHeight;
+                
+                // Remove temporary element
+                cloud.removeChild(wordElement);
+                wordElement.style.visibility = '';
+                wordElement.style.position = '';
+                
+                return {
+                    element: wordElement,
+                    width: width,
+                    height: height,
+                    count: wordObj.count
+                };
+            });
+            
+            // Place words in the cloud using spiral placement algorithm
+            placeWords(wordElements, cloud);
+        }
+        
+        function calculateFontSize(count, minCount, maxCount, minSize, maxSize) {
+            if (maxCount === minCount) return (minSize + maxSize) / 2;
+            
+            // Logarithmic scaling works better for word clouds
+            const minLog = Math.log(minCount || 1);
+            const maxLog = Math.log(maxCount);
+            const scale = (Math.log(count) - minLog) / (maxLog - minLog);
+            
+            return minSize + (maxSize - minSize) * scale;
+        }
+        
+        function placeWords(wordElements, container) {
+            const centerX = container.offsetWidth / 2;
+            const centerY = container.offsetHeight / 2;
+            
+            // Start placing from center
+            let angle = 0;
+            let radius = 0;
+            let placedWords = [];
+            
+            for (const word of wordElements) {
+                let placed = false;
+                let attempts = 0;
+                const maxAttempts = 100;
+                
+                while (!placed && attempts < maxAttempts) {
+                    // Spiral coordinates
+                    const x = centerX + radius * Math.cos(angle) - word.width / 2;
+                    const y = centerY + radius * Math.sin(angle) - word.height / 2;
+                    
+                    // Check for collisions
+                    if (!checkCollision(x, y, word.width, word.height, placedWords)) {
+                        // Place the word
+                        word.element.style.position = 'absolute';
+                        word.element.style.left = `${x}px`;
+                        word.element.style.top = `${y}px`;
+                        container.appendChild(word.element);
+                        
+                        // Add to placed words
+                        placedWords.push({
+                            x: x,
+                            y: y,
+                            width: word.width,
+                            height: word.height
+                        });
+                        
+                        placed = true;
+                    }
+                    
+                    // Move along spiral
+                    angle += 0.2;
+                    radius += 0.5;
+                    attempts++;
+                }
+                
+                if (!placed) {
+                    // If we couldn't place after many attempts, just place it at a random position
+                    word.element.style.position = 'absolute';
+                    word.element.style.left = `${Math.random() * (container.offsetWidth - word.width)}px`;
+                    word.element.style.top = `${Math.random() * (container.offsetHeight - word.height)}px`;
+                    container.appendChild(word.element);
+                }
+            }
+        }
+        
+        function checkCollision(x, y, width, height, placedWords) {
+            // Check container boundaries
+            const container = document.getElementById('wordCloud');
+            if (x < 0 || y < 0 || 
+                x + width > container.offsetWidth || 
+                y + height > container.offsetHeight) {
+                return true;
+            }
+            
+            // Check against other words
+            for (const placed of placedWords) {
+                if (x < placed.x + placed.width &&
+                    x + width > placed.x &&
+                    y < placed.y + placed.height &&
+                    y + height > placed.y) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Generate initial word cloud on page load
+        window.onload = generateWordCloud;
+    </script>
+</body>
+</html>

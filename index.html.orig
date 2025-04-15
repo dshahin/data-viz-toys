@@ -20,11 +20,14 @@
             <li><a href="cellular.html">cellular automata</a></li>
             <li><a href="cellular2.html">cellular automata 2</a></li>
             <li><a href="particles.html">particle life</a></li>
+<<<<<<< Updated upstream
+            <li><a href="tree.html">tree</a></li>
+=======
             <li><a href="markov.html">Markov Chain Text Generator</a></li>
-			<li><a href="tree.html">tree</a></li>
             <li><a href="wordcloud.html">word cloud</a></li>
             <li><a href="3dtree.html">3d tree</a></li>
             <li><a href="video_notes.html">video notes</a></li>
+>>>>>>> Stashed changes
         </section>
     </main>
     <footer>
