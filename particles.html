@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Particle Life with Size Control</title>
+    <title>Particle Life with Mouse Interaction</title>
     <style>
         body {
             margin: 0;
@@ -18,6 +18,7 @@
         canvas {
             display: block;
             border: 1px solid #333;
+            cursor: pointer;
         }
         .controls {
             position: absolute;
@@ -172,13 +173,20 @@
                 <input type="range" id="frictionSlider" min="0.8" max="0.99" value="0.95" step="0.01">
             </div>
             
-            <!-- Particle Size Control Only -->
             <div class="slider-container">
                 <div class="slider-label">
                     <span>Particle Size</span>
                     <span id="particleSizeValue">2</span>
                 </div>
                 <input type="range" id="particleSizeSlider" min="1" max="10" value="2" step="0.5">
+            </div>
+            
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Mouse Attraction</span>
+                    <span id="mouseForceValue">1.0</span>
+                </div>
+                <input type="range" id="mouseForceSlider" min="0" max="5" value="1.0" step="0.1">
             </div>
         </div>
         
@@ -220,6 +228,8 @@
         const frictionValue = document.getElementById('frictionValue');
         const particleSizeSlider = document.getElementById('particleSizeSlider');
         const particleSizeValue = document.getElementById('particleSizeValue');
+        const mouseForceSlider = document.getElementById('mouseForceSlider');
+        const mouseForceValue = document.getElementById('mouseForceValue');
 
         // Set canvas size
         canvas.width = window.innerWidth;
@@ -247,6 +257,11 @@
         let MAX_DISTANCE = 100;
         let MAX_FORCE = 0.5;
         let PARTICLE_SIZE = 2;
+        let MOUSE_FORCE = 1.0;
+        
+        // Mouse interaction
+        let mousePos = { x: 0, y: 0 };
+        let isMouseDown = false;
 
         // Performance tracking
         let lastTime = 0;
@@ -265,6 +280,25 @@
             }
 
             update() {
+                // Apply mouse force if mouse is down
+                if (isMouseDown && MOUSE_FORCE > 0) {
+                    const dx = mousePos.x - this.x;
+                    const dy = mousePos.y - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 0) {
+                        const directionX = dx / distance;
+                        const directionY = dy / distance;
+                        const strength = MOUSE_FORCE * (1 - distance / MAX_DISTANCE);
+                        
+                        if (strength > 0) {
+                            this.vx += directionX * strength;
+                            this.vy += directionY * strength;
+                        }
+                    }
+                }
+                
+                // Normal physics
                 this.x += this.vx;
                 this.y += this.vy;
                 
@@ -448,8 +482,22 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // Draw particles
             for (const particle of particles) {
                 particle.draw();
+            }
+            
+            // Draw mouse attraction indicator
+            if (isMouseDown) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.beginPath();
+                ctx.arc(mousePos.x, mousePos.y, MAX_DISTANCE, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(mousePos.x, mousePos.y, 5, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
@@ -491,6 +539,32 @@
             initRules();
         }
 
+        // Mouse event handlers
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            updateMousePosition(e);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            updateMousePosition(e);
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isMouseDown = false;
+        });
+
+        function updateMousePosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            mousePos = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
         // Event listeners
         resetBtn.addEventListener('click', resetSimulation);
         addTypeBtn.addEventListener('click', addParticleType);
@@ -519,15 +593,18 @@
             frictionValue.textContent = FRICTION.toFixed(2);
         });
         
-        // Particle size control
         particleSizeSlider.addEventListener('input', (e) => {
             PARTICLE_SIZE = parseFloat(e.target.value);
             particleSizeValue.textContent = PARTICLE_SIZE;
             
-            // Update all particles
             particles.forEach(p => {
                 p.radius = PARTICLE_SIZE;
             });
+        });
+        
+        mouseForceSlider.addEventListener('input', (e) => {
+            MOUSE_FORCE = parseFloat(e.target.value);
+            mouseForceValue.textContent = MOUSE_FORCE.toFixed(1);
         });
 
         // Handle window resize
