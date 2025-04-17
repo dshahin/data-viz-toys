@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Particle Life with Mouse Interaction</title>
+    <title>Particle Life with Collapsible Controls</title>
     <style>
         body {
             margin: 0;
@@ -32,6 +32,24 @@
             max-height: 90vh;
             overflow-y: auto;
             width: 350px;
+            transition: all 0.3s ease;
+        }
+        .controls.collapsed {
+            width: 40px;
+            height: 40px;
+            overflow: hidden;
+            padding: 10px;
+        }
+        .toggle-controls {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 10;
         }
         button {
             margin: 5px;
@@ -137,7 +155,8 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <div class="controls">
+    <div class="controls" id="controls">
+        <button class="toggle-controls" id="toggleControls">≡</button>
         <h3>Particle Life Simulation</h3>
         
         <div class="global-controls">
@@ -230,6 +249,8 @@
         const particleSizeValue = document.getElementById('particleSizeValue');
         const mouseForceSlider = document.getElementById('mouseForceSlider');
         const mouseForceValue = document.getElementById('mouseForceValue');
+        const controls = document.getElementById('controls');
+        const toggleControls = document.getElementById('toggleControls');
 
         // Set canvas size
         canvas.width = window.innerWidth;
@@ -538,6 +559,12 @@
         function randomizeRules() {
             initRules();
         }
+
+        // Toggle controls visibility
+        toggleControls.addEventListener('click', () => {
+            controls.classList.toggle('collapsed');
+            toggleControls.textContent = controls.classList.contains('collapsed') ? '≡' : '×';
+        });
 
         // Mouse event handlers
         canvas.addEventListener('mousedown', (e) => {
