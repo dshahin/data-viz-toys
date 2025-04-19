@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentRound.isBreak) {
             announcement = `Break time. ${minutes} minute${minutes !== 1 ? 's' : ''} remaining.`;
         } else {
-            announcement = `New round. Small blind: ${currentRound.smallBlind}. ` +
+            announcement = `Small blind: ${currentRound.smallBlind}. ` +
                           `  Big blind: ${currentRound.bigBlind}. ` +
                           (currentRound.ante > 0 ? `Ante: ${currentRound.ante}. ` : '') +
                           `Round duration: ${currentRound.duration} minutes. ` +
