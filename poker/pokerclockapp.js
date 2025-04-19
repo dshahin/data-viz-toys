@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Buttons
     const playPauseBtn = document.getElementById('playPause');
     const prevRoundBtn = document.getElementById('prevRound');
+    const colorChangeBtn = document.getElementById('colorChange');
+    const toggleFullscreenBtn = document.getElementById('toggleFullscreen');
     const nextRoundBtn = document.getElementById('nextRound');
     const resetRoundBtn = document.getElementById('resetRound');
     const addBreakBtn = document.getElementById('addBreak');
@@ -262,12 +264,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Replace the previous setupStickyHeader function with this:
     function setupStickyHeader() {
         const header = document.getElementById('stickyHeader');
-        
-        // Create and setup the icon
-        // const icon = createFullscreenIcon(header);
-        
-        // Double-click header to toggle fullscreen
-        header.addEventListener('dblclick', toggleFullscreenHeader);
         
         // Click icon to toggle fullscreen
         icon.addEventListener('click', function(e) {
@@ -701,6 +697,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupEventListeners() {
         // Clock Controls
         playPauseBtn.addEventListener('click', toggleTimer);
+        colorChangeBtn.addEventListener('click', setRandomHeaderColor);
+        toggleFullscreenBtn.addEventListener('click', toggleFullscreenHeader);
         prevRoundBtn.addEventListener('click', prevRound);
         nextRoundBtn.addEventListener('click', nextRound);
         resetRoundBtn.addEventListener('click', resetRound);
