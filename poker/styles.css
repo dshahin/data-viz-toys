@@ -478,6 +478,7 @@ textarea {
 }
 
 .sound-btn {
+    background-color: var(--primary-color);
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -485,10 +486,11 @@ textarea {
     align-items: center;
     justify-content: center;
     padding: 0;
+    margin: 0 5px;
 }
 
-.sound-btn.muted {
-    opacity: 0.6;
+.sound-btn .fa-volume-mute {
+    display: none;
 }
 
 .sound-btn.muted .fa-volume-up {
@@ -499,8 +501,9 @@ textarea {
     display: block;
 }
 
-.sound-btn .fa-volume-mute {
-    display: none;
+.sound-btn:hover {
+    background-color: var(--highlight-color);
+    transform: scale(1.1);
 }
 
 /* Mobile specific styles */

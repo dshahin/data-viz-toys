@@ -110,9 +110,19 @@ document.addEventListener('DOMContentLoaded', function() {
         checkHeaderOnLoad();
         setupPageVisibilityHandler(); // Add this line
         setupSoundControls();
+        setupMobileSoundUnlock();
     
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
+    }
+
+    function setupMobileSoundUnlock() {
+        const unlockAudio = () => {
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio, { once: true });
+        document.addEventListener('touchstart', unlockAudio, { once: true });
     }
 
     // Replace the previous setupStickyHeader function with this:
@@ -163,13 +173,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setupSoundControls() {
         // Load sound preference from localStorage
-        soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
+        const savedSoundPref = localStorage.getItem('pokerClockSoundEnabled');
+        soundEnabled = savedSoundPref ? savedSoundPref === 'true' : true;
         updateSoundButton();
         
         toggleSoundBtn.addEventListener('click', () => {
             soundEnabled = !soundEnabled;
-            localStorage.setItem('soundEnabled', soundEnabled);
+            localStorage.setItem('pokerClockSoundEnabled', soundEnabled);
             updateSoundButton();
+            // Play a test sound when toggling (optional)
+            if (soundEnabled) playTestSound();
         });
     }
     
@@ -181,6 +194,23 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleSoundBtn.classList.add('muted');
             toggleSoundBtn.title = "Unmute sounds";
         }
+    }
+
+    function playTestSound() {
+        // Brief beep to confirm sound is working
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 800;
+        gainNode.gain.value = 0.1;
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
     }
     
     function playRoundChangeSound() {
