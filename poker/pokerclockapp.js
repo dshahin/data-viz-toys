@@ -108,7 +108,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderRoundsTable();
         updateClockDisplay();
         setupEventListeners();
-        setupStickyHeader();
         checkHeaderOnLoad();
         setupPageVisibilityHandler(); // Add this line
         setupSoundControls();
@@ -117,18 +116,10 @@ document.addEventListener('DOMContentLoaded', function() {
         loadHeaderColor();
         playVictoryFanfare();
         setupSpeech();
-        addFullscreenIcon();
+
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
     
-    }
-
-    function addFullscreenIcon() {
-        const header = document.getElementById('stickyHeader');
-        const icon = document.createElement('div');
-        icon.className = 'fullscreen-icon';
-        icon.innerHTML = '<i class="fas fa-expand"></i>';
-        header.appendChild(icon);
     }
 
     function announceRoundDetails() {
@@ -145,8 +136,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             announcement = `Small blind: ${currentRound.smallBlind}. ` +
                           `  Big blind: ${currentRound.bigBlind}. ` +
-                          (currentRound.ante > 0 ? `Ante: ${currentRound.ante}. ` : '') +
-                          `Round duration: ${currentRound.duration} minutes. ` +
+                          (currentRound.ante > 0 ? `Antey: ${currentRound.ante}. ` : '') +
+                         
                           `${minutes} minute${minutes !== 1 ? 's' : ''} remaining.` +
                           ` Good luck! Shuffle up and deal!`;
         }
@@ -259,58 +250,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         document.addEventListener('click', unlockAudio, { once: true });
         document.addEventListener('touchstart', unlockAudio, { once: true });
-    }
-
-    // Replace the previous setupStickyHeader function with this:
-    function setupStickyHeader() {
-        const header = document.getElementById('stickyHeader');
-        
-        // Click icon to toggle fullscreen
-        icon.addEventListener('click', function(e) {
-            e.stopPropagation(); // Prevent event from bubbling to header
-            toggleFullscreenHeader();
-        });
-    
-        // Handle escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && header.classList.contains('fullscreen')) {
-                toggleFullscreenHeader();
-            }
-        });
-    }
-    
-    function createFullscreenIcon(header) {
-        // Remove existing icon if present
-        const oldIcon = header.querySelector('.fullscreen-icon');
-        if (oldIcon) oldIcon.remove();
-        
-        // Create new icon
-        const icon = document.createElement('div');
-        icon.className = 'fullscreen-icon';
-        icon.innerHTML = '<i class="fas fa-expand"></i>';
-        icon.title = "Toggle fullscreen";
-        header.appendChild(icon);
-        return icon;
-    }
-    
-    function toggleFullscreenHeader() {
-        const header = document.getElementById('stickyHeader');
-        const icon = header.querySelector('.fullscreen-icon');
-        const isFullscreen = !header.classList.contains('fullscreen');
-        
-        // Toggle classes
-        header.classList.toggle('fullscreen', isFullscreen);
-        document.body.classList.toggle('header-fullscreen', isFullscreen);
-        
-        // Update icon
-        if (icon) {
-            icon.innerHTML = isFullscreen ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
-        }
-        
-        // Focus management
-        if (isFullscreen) {
-            header.focus(); // For keyboard control
-        }
     }
     
 
