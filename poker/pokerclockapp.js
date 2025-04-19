@@ -115,9 +115,18 @@ document.addEventListener('DOMContentLoaded', function() {
         loadHeaderColor();
         playVictoryFanfare();
         setupSpeech();
+        addFullscreenIcon();
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
     
+    }
+
+    function addFullscreenIcon() {
+        const header = document.getElementById('stickyHeader');
+        const icon = document.createElement('div');
+        icon.className = 'fullscreen-icon';
+        icon.innerHTML = '<i class="fas fa-expand"></i>';
+        header.appendChild(icon);
     }
 
     function announceRoundDetails() {
@@ -253,39 +262,61 @@ document.addEventListener('DOMContentLoaded', function() {
     // Replace the previous setupStickyHeader function with this:
     function setupStickyHeader() {
         const header = document.getElementById('stickyHeader');
-        const headerHeight = header.offsetHeight;
         
-        // Create a small sentinel element at the top of the page
-        const sentinel = document.createElement('div');
-        sentinel.style.position = 'absolute';
-        sentinel.style.top = '0';
-        sentinel.style.height = '1px';
-        document.body.prepend(sentinel);
+        // Create and setup the icon
+        // const icon = createFullscreenIcon(header);
         
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                // When sentinel is at or above viewport top, uncollapse header
-                if (entry.boundingClientRect.top >= 0) {
-                    header.classList.remove('collapsed');
-                } else {
-                    header.classList.add('collapsed');
-                }
-            });
-        }, {
-            root: null,
-            rootMargin: '0px',
-            threshold: 0
+        // Double-click header to toggle fullscreen
+        header.addEventListener('dblclick', toggleFullscreenHeader);
+        
+        // Click icon to toggle fullscreen
+        icon.addEventListener('click', function(e) {
+            e.stopPropagation(); // Prevent event from bubbling to header
+            toggleFullscreenHeader();
         });
     
-        observer.observe(sentinel);
+        // Handle escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && header.classList.contains('fullscreen')) {
+                toggleFullscreenHeader();
+            }
+        });
+    }
+    
+    function createFullscreenIcon(header) {
+        // Remove existing icon if present
+        const oldIcon = header.querySelector('.fullscreen-icon');
+        if (oldIcon) oldIcon.remove();
         
-        // Handle mobile touch to manually toggle
-        if ('ontouchstart' in window) {
-            header.addEventListener('click', function() {
-                this.classList.toggle('collapsed');
-            });
+        // Create new icon
+        const icon = document.createElement('div');
+        icon.className = 'fullscreen-icon';
+        icon.innerHTML = '<i class="fas fa-expand"></i>';
+        icon.title = "Toggle fullscreen";
+        header.appendChild(icon);
+        return icon;
+    }
+    
+    function toggleFullscreenHeader() {
+        const header = document.getElementById('stickyHeader');
+        const icon = header.querySelector('.fullscreen-icon');
+        const isFullscreen = !header.classList.contains('fullscreen');
+        
+        // Toggle classes
+        header.classList.toggle('fullscreen', isFullscreen);
+        document.body.classList.toggle('header-fullscreen', isFullscreen);
+        
+        // Update icon
+        if (icon) {
+            icon.innerHTML = isFullscreen ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+        }
+        
+        // Focus management
+        if (isFullscreen) {
+            header.focus(); // For keyboard control
         }
     }
+    
 
     function checkHeaderOnLoad() {
         const header = document.getElementById('stickyHeader');
@@ -312,6 +343,21 @@ document.addEventListener('DOMContentLoaded', function() {
             playAdjustmentSound();
         } else {
             playRoundChangeSound(); // Play warning sound
+        }
+    }
+
+    function toggleFullscreenHeader() {
+        const header = document.getElementById('stickyHeader');
+        const isFullscreen = header.classList.toggle('fullscreen');
+        document.body.classList.toggle('header-fullscreen', isFullscreen);
+        
+        // Update clock display when entering fullscreen
+        if (isFullscreen) updateClockDisplay();
+        
+        // Optional: Change icon based on state
+        const icon = header.querySelector('.fullscreen-icon');
+        if (icon) {
+            icon.innerHTML = isFullscreen ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
         }
     }
     
