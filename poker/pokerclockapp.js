@@ -111,9 +111,134 @@ document.addEventListener('DOMContentLoaded', function() {
         setupPageVisibilityHandler(); // Add this line
         setupSoundControls();
         setupMobileSoundUnlock();
-    
+        setupRandomColorButton();
+        loadHeaderColor();
+        playVictoryFanfare();
+        setupSpeech();
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
+    
+    }
+
+    function announceRoundDetails() {
+        // Check if speech is supported and allowed
+        if (!window.speechSynthesis || !soundEnabled) return;
+        
+        const currentRound = tournament.rounds[tournament.currentRoundIndex];
+        const minutes = Math.floor(tournament.timeRemaining / 60);
+        
+        // Create the announcement text
+        let announcement;
+        if (currentRound.isBreak) {
+            announcement = `Break time. ${minutes} minute${minutes !== 1 ? 's' : ''} remaining.`;
+        } else {
+            announcement = `New round. Small blind: ${currentRound.smallBlind}. ` +
+                          `  Big blind: ${currentRound.bigBlind}. ` +
+                          (currentRound.ante > 0 ? `Ante: ${currentRound.ante}. ` : '') +
+                          `Round duration: ${currentRound.duration} minutes. ` +
+                          `${minutes} minute${minutes !== 1 ? 's' : ''} remaining.` +
+                          ` Good luck! Shuffle up and deal!`;
+        }
+        
+        // Cancel any previous speech
+        speechSynthesis.cancel();
+        
+        // Create and configure the utterance
+        const utterance = new SpeechSynthesisUtterance(announcement);
+        utterance.volume = 1; // 0-1 scale
+        utterance.rate = 0.9; // Slightly slower than normal
+        utterance.pitch = 1; // Normal pitch
+        
+        // Select a pleasant voice if available
+        const voices = speechSynthesis.getVoices();
+        const preferredVoices = [
+            'Google UK English Male',
+            'Microsoft David - English (United States)',
+            'Alex', // macOS
+            'Google UK English Female'
+        ];
+        
+        for (const voiceName of preferredVoices) {
+            const voice = voices.find(v => v.name === voiceName);
+            if (voice) {
+                utterance.voice = voice;
+                break;
+            }
+        }
+        
+        // Speak the announcement
+        speechSynthesis.speak(utterance);
+        
+        // Handle errors gracefully
+        utterance.onerror = (event) => {
+            console.log('Speech error:', event.error);
+        };
+    }
+    
+    function setupSpeech() {
+        // Some browsers need voices to be loaded first
+        speechSynthesis.onvoiceschanged = () => {
+            // Voices are now loaded
+        };
+        
+        // Call this when rounds change
+        announceRoundDetails();
+    }
+
+    function setRandomHeaderColor() {
+        const header = document.getElementById('stickyHeader');
+        const colors = [
+            '#1a472a', // Dark green
+            '#2c3e50', // Navy
+            '#27ae60', // Emerald
+            '#e74c3c', // Red
+            '#3498db', // Blue
+            '#9b59b6', // Purple
+            '#16a085',  // Teal
+            '#e67e22', // Carrot
+            '#f1c40f', // Sunflower
+            '#8e44ad', // Wisteria
+            '#2980b9', // Peter River
+            '#d35400', // Pumpkin
+            '#2ecc71', // Nephritis
+            '#e74c3c', // Pomegranate
+            '#f39c12', // Orange
+
+        ];
+        
+        // Get current color
+        const currentColor = header.style.backgroundColor || 
+                            getComputedStyle(header).backgroundColor;
+        
+        
+        let newColor;
+        do {
+            newColor = colors[Math.floor(Math.random() * colors.length)];
+        } while (newColor === currentColor);
+        
+        // Animate the transition
+        header.style.transition = 'background-color 0.5s ease';
+        header.style.backgroundColor = newColor;
+        
+        // Store the color in localStorage
+        localStorage.setItem('headerColor', newColor);
+    }
+    
+    function setupRandomColorButton() {
+        const colorBtn = document.createElement('button');
+        colorBtn.innerHTML = '<i class="fas fa-palette"></i>';
+        colorBtn.className = 'btn color-btn';
+        colorBtn.title = 'Change header color';
+        colorBtn.addEventListener('click', setRandomHeaderColor);
+        
+        document.querySelector('.controls').appendChild(colorBtn);
+    }
+    
+    function loadHeaderColor() {
+        const savedColor = localStorage.getItem('headerColor');
+        if (savedColor) {
+            document.getElementById('stickyHeader').style.backgroundColor = savedColor;
+        }
     }
 
     function setupMobileSoundUnlock() {
@@ -171,6 +296,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function addMinute() {
+        tournament.timeRemaining += 60;
+        updateClockDisplay();
+        saveToLocalStorage();
+        playAdjustmentSound();
+    }
+    
+    function subtractMinute() {
+        // Don't allow negative time
+        if (tournament.timeRemaining > 60) {
+            tournament.timeRemaining -= 60;
+            updateClockDisplay();
+            saveToLocalStorage();
+            playAdjustmentSound();
+        } else {
+            playRoundChangeSound(); // Play warning sound
+        }
+    }
+    
+    function playAdjustmentSound() {
+        if (!soundEnabled) return;
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 600;
+        oscillator.connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+
     function setupSoundControls() {
         // Load sound preference from localStorage
         const savedSoundPref = localStorage.getItem('pokerClockSoundEnabled');
@@ -184,6 +339,83 @@ document.addEventListener('DOMContentLoaded', function() {
             // Play a test sound when toggling (optional)
             if (soundEnabled) playTestSound();
         });
+    }
+
+    function playBreakSound() {
+        if (!soundEnabled) return;
+        
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // Pentatonic scale notes (C4, D4, E4, G4, A4)
+        const scale = [261.63, 293.66, 329.63, 392.00, 440.00];
+        
+        // Create 5-7 randomized chimes
+        const chimeCount = 5 + Math.floor(Math.random() * 3);
+        
+        for (let i = 0; i < chimeCount; i++) {
+            const note = scale[Math.floor(Math.random() * scale.length)];
+            const delay = i * 0.3 + Math.random() * 0.2;
+            
+            // Main tone
+            const osc1 = audioContext.createOscillator();
+            const gain1 = audioContext.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.value = note;
+            osc1.detune.value = (Math.random() * 4) - 2; // Slight natural detuning
+            
+            // Harmonic overtone (12th above)
+            const osc2 = audioContext.createOscillator();
+            const gain2 = audioContext.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.value = note * 3; // Perfect 12th harmonic
+            osc2.detune.value = (Math.random() * 4) - 2;
+            
+            // Create natural decay
+            gain1.gain.setValueAtTime(0.15, now + delay);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + delay + 2);
+            
+            gain2.gain.setValueAtTime(0.07, now + delay);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + delay + 2.5);
+            
+            // Apply slight stereo panning
+            const panner1 = audioContext.createStereoPanner();
+            const panner2 = audioContext.createStereoPanner();
+            panner1.pan.value = (Math.random() * 0.6) - 0.3;
+            panner2.pan.value = (Math.random() * 0.6) - 0.3;
+            
+            // Connect nodes
+            osc1.connect(gain1).connect(panner1).connect(audioContext.destination);
+            osc2.connect(gain2).connect(panner2).connect(audioContext.destination);
+            
+            // Start/stop
+            osc1.start(now + delay);
+            osc1.stop(now + delay + 2);
+            
+            osc2.start(now + delay);
+            osc2.stop(now + delay + 2.5);
+        }
+        
+        // Add subtle wind noise background
+        const noise = audioContext.createBufferSource();
+        const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 3, audioContext.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+            noiseData[i] = Math.random() * 2 - 1;
+        }
+        
+        const noiseFilter = audioContext.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.value = 500;
+        
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0.03, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 5);
+        
+        noise.buffer = noiseBuffer;
+        noise.connect(noiseFilter).connect(noiseGain).connect(audioContext.destination);
+        noise.start(now);
+        noise.stop(now + 5);
     }
     
     function updateSoundButton() {
@@ -233,6 +465,121 @@ document.addEventListener('DOMContentLoaded', function() {
         
         oscillator.start();
         oscillator.stop(audioContext.currentTime + 0.3);
+    }
+
+    function playVictoryFanfare() {
+        if (!soundEnabled) return;
+        
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // Zelda-inspired victory melody (C5, E5, G5, C6)
+        const notes = [
+            { freq: 523.25, start: 0.0, duration: 0.3 }, // C5
+            { freq: 659.25, start: 0.3, duration: 0.3 }, // E5
+            { freq: 783.99, start: 0.6, duration: 0.3 }, // G5
+            { freq: 1046.50, start: 0.9, duration: 0.5 } // C6
+        ];
+        
+        // Add harmonic overtone for richer sound
+        const overtoneNotes = [
+            { freq: 1046.50, start: 0.0, duration: 0.3 }, // C6
+            { freq: 1318.51, start: 0.3, duration: 0.3 }, // E6
+            { freq: 1567.98, start: 0.6, duration: 0.3 }, // G6
+            { freq: 2093.00, start: 0.9, duration: 0.5 }  // C7
+        ];
+        
+        // Play main melody
+        notes.forEach(note => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = note.freq;
+            gain.gain.setValueAtTime(0.2, now + note.start);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + note.start + note.duration);
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.start(now + note.start);
+            osc.stop(now + note.start + note.duration);
+        });
+        
+        // Play harmonic overtone (softer)
+        overtoneNotes.forEach(note => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = note.freq;
+            gain.gain.setValueAtTime(0.1, now + note.start);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + note.start + note.duration);
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.start(now + note.start);
+            osc.stop(now + note.start + note.duration);
+        });
+        
+        // Add trumpet-like attack at beginning
+        const attackOsc = audioContext.createOscillator();
+        const attackGain = audioContext.createGain();
+        attackOsc.type = 'sawtooth';
+        attackOsc.frequency.value = 523.25; // C5
+        attackGain.gain.setValueAtTime(0.3, now);
+        attackGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        attackOsc.connect(attackGain);
+        attackGain.connect(audioContext.destination);
+        attackOsc.start(now);
+        attackOsc.stop(now + 0.1);
+        
+        // Add drum hit at the end (1.4 seconds)
+        setTimeout(() => {
+            if (soundEnabled) {
+                const drumGain = audioContext.createGain();
+                const drumOsc = audioContext.createOscillator();
+                drumOsc.type = 'triangle';
+                drumOsc.frequency.value = 100;
+                drumGain.gain.setValueAtTime(0.5, now);
+                drumGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                drumOsc.connect(drumGain);
+                drumGain.connect(audioContext.destination);
+                drumOsc.start(now + 1.4);
+                drumOsc.stop(now + 1.5);
+            }
+        }, 0);
+    }
+
+    function playMelodiousAlert() {
+        if (!soundEnabled) return;
+        
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        
+        // Create three oscillators for a chord
+        const notes = [
+            { freq: 784.00, duration: 0.3 }, // G5
+            { freq: 659.25, duration: 0.3 }, // E5
+            { freq: 523.25, duration: 0.5 }  // C5
+        ];
+        
+        notes.forEach((note, i) => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = note.freq;
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + note.duration);
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.start(now + (i * 0.1)); // Stagger the notes slightly
+            osc.stop(now + note.duration + (i * 0.1));
+        });
     }
 
     
@@ -326,6 +673,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loadShortBtn.addEventListener('click', () => loadSampleStructure('short'));
         loadMediumBtn.addEventListener('click', () => loadSampleStructure('medium'));
         loadLongBtn.addEventListener('click', () => loadSampleStructure('long'));
+
+        document.getElementById('addMinute').addEventListener('click', addMinute);
+        document.getElementById('subtractMinute').addEventListener('click', subtractMinute);
         
         // Close modal when clicking outside
         window.addEventListener('click', function(event) {
@@ -505,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tournament.isRunning = true;
         playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
         playPauseBtn.classList.add('play');
-        
+        playAdjustmentSound();
         tournament.timer = setInterval(function() {
             tournament.timeRemaining--;
             updateClockDisplay();
@@ -524,6 +874,7 @@ document.addEventListener('DOMContentLoaded', function() {
         playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
         playPauseBtn.classList.remove('play');
         saveToLocalStorage();
+        playAdjustmentSound();
     }
     
     function prevRound() {
@@ -531,6 +882,8 @@ document.addEventListener('DOMContentLoaded', function() {
             tournament.currentRoundIndex--;
             playRoundChangeSound();
             resetRound();
+            announceRoundDetails();
+            setRandomHeaderColor();
             renderRoundsTable(); // Ensure highlighting updates
         }
     }
@@ -538,12 +891,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function nextRound() {
         if (tournament.currentRoundIndex < tournament.rounds.length - 1) {
             tournament.currentRoundIndex++;
-            playRoundChangeSound();
+            playMelodiousAlert();
+            setRandomHeaderColor();
             resetRound();
             renderRoundsTable(); // Ensure highlighting updates
+            //if this is a break, play a sound
+            if (tournament.rounds[tournament.currentRoundIndex].isBreak) {
+                playBreakSound();
+            }
+            announceRoundDetails(); 
         } else {
             // End of tournament
-            playRoundChangeSound();
+            // playRoundChangeSound();
+            playVictoryFanfare();
             pauseTimer();
             alert('Tournament structure completed!');
         }
@@ -552,7 +912,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetRound() {
         const currentRound = tournament.rounds[tournament.currentRoundIndex];
         tournament.timeRemaining = currentRound.duration * 60;
-        
+        announceRoundDetails();
         if (tournament.isRunning) {
             pauseTimer();
             startTimer();
@@ -590,8 +950,37 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentRound = tournament.rounds[tournament.currentRoundIndex];
         const minutes = Math.floor(tournament.timeRemaining / 60);
         const seconds = tournament.timeRemaining % 60;
+        const timeEl = document.getElementById('timeRemaining');
         
-        timeRemainingEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        // Update time display
+        timeEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Handle critical time (last minute)
+        if(tournament.timeRemaining === 60) {
+            playMelodiousAlert();
+            timeEl.classList.add('one-minute');
+        }
+        if(tournament.timeRemaining === 30) {
+            playMelodiousAlert();
+        }
+        if (tournament.timeRemaining <= 60 && tournament.timeRemaining > 10) {
+            timeEl.classList.add('one-minute');
+        }else{
+            timeEl.classList.remove('one-minute');
+        }
+        //last ten seconds
+        if (tournament.timeRemaining <= 10) {
+            timeEl.classList.add('time-critical');
+            
+            // Play warning beep every second if sound is enabled
+            if (soundEnabled && tournament.isRunning && seconds % 2 === 0) {
+                playWarningSound();
+            }
+        } else {
+            timeEl.classList.remove('time-critical');
+        }
+        
+        // Rest of your existing display updates...
         roundNumberEl.textContent = `Round ${tournament.currentRoundIndex + 1}`;
         
         if (currentRound.isBreak) {
@@ -601,6 +990,22 @@ document.addEventListener('DOMContentLoaded', function() {
             blindsDisplayEl.textContent = `${currentRound.smallBlind} / ${currentRound.bigBlind}`;
             anteDisplayEl.textContent = currentRound.ante > 0 ? `Ante: ${currentRound.ante}` : '';
         }
+    }
+    
+    function playWarningSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 800;
+        gainNode.gain.value = 0.2;
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
     }
     
     function renderRoundsTable() {
@@ -672,7 +1077,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Modal Functions
     function openModal() {
-        pauseTimer();
         document.body.classList.add('modal-open');
         modal.style.display = 'block';
         structureNameInput.value = tournament.name;

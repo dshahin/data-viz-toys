@@ -1,5 +1,6 @@
 :root {
     --primary-color: #1a472a;
+    --red-color: #e74c3c;
     --secondary-color: #2d3436;
     --accent-color: #e74c3c;
     --light-color: #ecf0f1;
@@ -70,6 +71,16 @@ main {
     flex-direction: column;
 }
 
+.color-btn {
+    margin-left: 10px;
+    background-color: var(--secondary-color);
+}
+
+.color-btn:hover {
+    background-color: var(--highlight-color);
+    transform: rotate(15deg);
+}
+
 .clock-display {
     background-color: var(--dark-color);
     border-radius: 10px;
@@ -80,9 +91,9 @@ main {
 }
 
 .time-remaining {
-    font-size: 10rem;
+    font-size: 15rem;
     font-weight: bold;
-    margin: 10px 0;
+    margin: 5px 0;
     color: var(--light-color);
     font-family: 'Courier New', Courier, monospace;
 }
@@ -90,8 +101,8 @@ main {
 .round-info {
     display: flex;
     justify-content: space-around;
-    font-size: 1.5rem;
-    margin-top: 10px;
+    font-size: 4rem;
+    margin-top: 0px;
 }
 
 .round-number, .blinds, .ante {
@@ -120,6 +131,7 @@ main {
     display: flex;
     align-items: center;
     gap: 5px;
+    min-width: 40px;
 }
 
 .btn:hover {
@@ -187,6 +199,11 @@ main {
 
 .rounds-table tr.break-round {
     background-color: var(--break-color);
+}
+
+#addMinute, #subtractMinute {
+    padding: 10px 5px;
+    font-size: 0.9rem;
 }
 
 footer {
@@ -308,6 +325,15 @@ textarea {
         flex-direction: column;
         gap: 0;
     }
+    .controls {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+    }
+    
+    #addMinute, #subtractMinute {
+        grid-column: span 2;
+    }
 }
 
 @media (max-width: 480px) {
@@ -427,7 +453,11 @@ textarea {
     flex-direction: column;
     align-items: center;
     transition: transform 0.2s ease-out, padding 0.2s ease-out;
+    transition: background-color 0.5s ease; /* Smooth color change */
 }
+
+
+
 
 
 
@@ -510,5 +540,22 @@ textarea {
     .sticky-header.collapsed .time-remaining {
         font-size: min(2.2rem, 12vw);
     }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.9; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.time-critical {
+    animation: pulse 1s infinite;
+    color: #ff5555;
+    text-shadow: 0 0 10px rgba(255, 85, 85, 0.5);
+}
+
+.one-minute {
+    animation: pulse 1s infinite;
+    color: orange;
 }
 

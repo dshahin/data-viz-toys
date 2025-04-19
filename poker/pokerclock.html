@@ -6,6 +6,8 @@
     <title>♥️♣️Poker Tournament Clock♠️♦️</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" href="data:,"> <!-- This prevents the 404 -->
+    
 </head>
 <body>
     <div class="container">
@@ -22,22 +24,35 @@
                     <div class="blinds" id="blindsDisplay">100 / 200</div>
                     <div class="ante" id="anteDisplay">Ante: 25</div>
                 </div>
+
+                <div class="controls">
+                    <button id="prevRound" class="btn"><i class="fas fa-step-backward"></i></button>
+                    <button id="playPause" class="btn play"><i class="fas fa-play"></i></button>
+                    <button id="nextRound" class="btn"><i class="fas fa-step-forward"></i></button>
+                    <button id="resetRound" class="btn"><i class="fas fa-redo"></i></button>
+                    <button id="addBreak" class="btn"><i class="fas fa-coffee"></i> Add Break</button>
+                    <button id="toggleSound" class="btn sound-btn" title="Toggle sound">
+                        <i class="fas fa-volume-up"></i>
+                        <i class="fas fa-volume-mute"></i>
+                    </button>
+    
+                    <!-- Add these new buttons -->
+                    
+                    <button id="subtractMinute" class="btn" title="Subtract 1 minute">
+                        <i class="fas fa-minus"></i> 1
+                    </button>
+                    <button id="addMinute" class="btn" title="Add 1 minute">
+                        <i class="fas fa-plus"></i> 1
+                    </button>
+                    
+                    
+                    
+                </div>
             </div>
             
-            <div class="sticky-spacer"></div>
+            
 
-            <div class="controls">
-                <button id="prevRound" class="btn"><i class="fas fa-step-backward"></i></button>
-                <button id="playPause" class="btn play"><i class="fas fa-play"></i></button>
-                <button id="nextRound" class="btn"><i class="fas fa-step-forward"></i></button>
-                <button id="resetRound" class="btn"><i class="fas fa-redo"></i></button>
-                <button id="addBreak" class="btn"><i class="fas fa-coffee"></i> Add Break</button>
-                <button id="toggleSound" class="btn sound-btn" title="Toggle sound">
-                    <i class="fas fa-volume-up"></i>
-                    <i class="fas fa-volume-mute"></i>
-                </button>
-                <button id="manageStructure" class="btn manage-btn"><i class="fas fa-cog"></i> Manage Structure</button>
-            </div>
+            
 
             <div class="rounds-container">
                 <table class="rounds-table" id="roundsTable">
@@ -58,7 +73,9 @@
             </div>
         </main>
 
-        
+        <footer>
+            <button id="manageStructure" class="btn manage-btn"><i class="fas fa-cog"></i> Manage Structure</button>
+        </footer>
     </div>
 
     <!-- Structure Management Modal -->
@@ -144,6 +161,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="pokerclockapp.js"></script>
 </body>
 </html>
