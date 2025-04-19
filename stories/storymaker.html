@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branching Story Generator</title>
+    <link rel="stylesheet" href="story_styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Branching Story Generator</h1>
+        
+        <div class="toolbar">
+            <button id="newStoryBtn">New Story</button>
+            <button id="editStoryBtn">Edit Current Story</button>
+            <button id="exportBtn">Export Story</button>
+            <button id="importBtn">Import Story</button>
+            <input type="file" id="importFile" style="display: none;" accept=".json">
+        </div>
+        
+        <div class="story-display" id="storyDisplay">
+            <h2 id="storyTitle">Story Title</h2>
+            <div id="storyContent">Loading story...</div>
+            <div class="choices" id="choicesContainer"></div>
+        </div>
+        
+        <div class="editor-panel" id="editorPanel">
+            <h3>Story Editor</h3>
+            <div class="editor-nav">
+                <button id="prevPhaseBtn">← Previous Node</button>
+                <span id="currentPhaseDisplay">Node 1</span>
+                <button id="nextPhaseBtn">Next Node →</button>
+                <button id="addPhaseBtn">+ Add New Node</button>
+            </div>
+            <div class="node-id-display">Editing Node ID: <span id="editingNodeId">1</span></div>
+            
+            <div class="node-title-editor">
+                <label>Node Title:</label>
+                <input type="text" id="editNodeTitle" placeholder="Node title">
+            </div>
+            
+            <input type="text" id="editStoryTitle" placeholder="Story Title">
+            <div class="node-type-selector">
+                <label>Node Type:</label>
+                <select id="nodeTypeSelect">
+                    <option value="normal">Normal</option>
+                    <option value="success">Success Ending</option>
+                    <option value="failure">Failure Ending</option>
+                </select>
+            </div>
+            <textarea id="editContent" placeholder="Story content"></textarea>
+            <div id="editChoices">
+                <h4>Choices (leave empty for ending nodes)</h4>
+                <div id="choiceInputs"></div>
+                <button id="addChoiceBtn">Add Choice</button>
+            </div>
+            <div class="phase-list" id="phaseList">
+                <h4>All Story Nodes</h4>
+                <div id="phaseListItems"></div>
+            </div>
+            <button id="saveEditBtn">Save Changes</button>
+            <button id="cancelEditBtn">Cancel</button>
+        </div>
+        
+        <div class="library">
+            <h3>Story Library</h3>
+            <div id="libraryList"></div>
+        </div>
+    </div>
+
+    <script src="sampleStory.js"></script>
+    <script src="storyApp.js"></script>
+</body>
+</html>

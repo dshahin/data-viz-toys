@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Poker Tournament Clock</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Texas Hold'em Tournament Clock</h1>
+    
+    <div class="container">
+        <div class="clock-section">
+            <div class="clock-display" id="clock">00:00</div>
+            <div class="level-display">Level: <span id="current-level">1</span></div>
+            <div class="blinds-display" id="blinds-display">25 / 50</div>
+            <div class="button-group">
+                <button class="start-btn" id="start-btn">Start</button>
+                <button class="pause-btn hidden" id="pause-btn">Pause</button>
+                <button class="reset-btn" id="reset-btn">Reset</button>
+                <button class="prev-btn" id="prev-btn">Previous</button>
+                <button class="next-btn" id="next-btn">Next</button>
+            </div>
+            
+            <h3>Structure</h3>
+            <table id="structure-table">
+                <thead>
+                    <tr>
+                        <th>Level</th>
+                        <th>Small</th>
+                        <th>Big</th>
+                        <th>Ante</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="structure-body">
+                    <!-- Levels will be added here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="controls-section">
+            <h2>Structure Management</h2>
+            
+            <div class="form-group">
+                <label for="structure-select">Current Structure:</label>
+                <select id="structure-select" class="structure-selector"></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="new-structure-name">New Structure Name:</label>
+                <input type="text" id="new-structure-name" placeholder="Enter structure name">
+            </div>
+            
+            <button id="new-structure-btn" class="preset-btn">Create New</button>
+            <button id="save-structure-btn" class="preset-btn">Save Current</button>
+            <button id="delete-structure-btn" class="preset-btn" style="background-color: #e74c3c;">Delete</button>
+            
+            <div class="structure-management">
+                <h3>Import/Export</h3>
+                <button id="export-csv-btn" class="preset-btn">Export CSV</button>
+                <button id="import-csv-btn" class="preset-btn">Import CSV</button>
+            </div>
+            
+            <div class="structure-management">
+                <h3>Level Editor</h3>
+                <div class="form-group">
+                    <label for="level-type">Level Type:</label>
+                    <select id="level-type">
+                        <option value="blind">Blind Level</option>
+                        <option value="break">Break</option>
+                    </select>
+                </div>
+                
+                <div id="blind-fields">
+                    <div class="form-group">
+                        <label for="small-blind">Small Blind:</label>
+                        <input type="number" id="small-blind" min="0" value="25">
+                    </div>
+                    <div class="form-group">
+                        <label for="big-blind">Big Blind:</label>
+                        <input type="number" id="big-blind" min="0" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="ante">Ante:</label>
+                        <input type="number" id="ante" min="0" value="0">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="duration">Duration (min):</label>
+                    <input type="number" id="duration" min="1" value="20">
+                </div>
+                
+                <button class="add-level-btn" id="add-level-btn">Add Level</button>
+                <button class="remove-level-btn" id="remove-level-btn">Remove Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV Import/Export Modal -->
+    <div id="csv-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-title">Export Structure</h2>
+            <textarea id="csv-textarea" class="csv-textarea" placeholder="CSV data will appear here..."></textarea>
+            <button id="modal-action-btn" class="preset-btn">Export</button>
+        </div>
+    </div>
+
+    <script src="pokerclock.js"></script>
+</body>
+</html>

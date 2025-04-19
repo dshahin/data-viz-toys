@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Player</title>
+    <link rel="stylesheet" href="story_styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Story Player</h1>
+        
+        <div class="story-selector" id="storySelector">
+            <h3>Choose a Story</h3>
+            <div id="libraryList"></div>
+        </div>
+        
+        <div class="story-display" id="storyDisplay" style="display: none;">
+            <h2 id="storyTitle">Story Title</h2>
+            <div id="storyContent">Loading story...</div>
+            <div class="choices" id="choicesContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        class StoryPlayer {
+            constructor() {
+                this.currentStory = null;
+                this.library = JSON.parse(localStorage.getItem('storyLibrary')) || [];
+                this.updateLibraryList();
+            }
+
+            loadStory(story) {
+                this.currentStory = JSON.parse(JSON.stringify(story));
+                this.currentStory.currentPhase = 1;
+                document.getElementById('storySelector').style.display = 'none';
+                document.getElementById('storyDisplay').style.display = 'block';
+                this.updateDisplay();
+            }
+
+            updateDisplay() {
+                const phase = this.currentStory.phases[this.currentStory.currentPhase];
+                document.getElementById('storyTitle').textContent = this.currentStory.title;
+                
+                const storyContent = document.getElementById('storyContent');
+                storyContent.className = 'story-content';
+                storyContent.innerHTML = `<h3>${phase.title}</h3><p>${phase.content}</p>`;
+                
+                if (phase.type === "success") {
+                    storyContent.classList.add('success-node');
+                    storyContent.innerHTML += `<div class="end-message success-message">SUCCESS! You completed the story!</div>`;
+                } else if (phase.type === "failure") {
+                    storyContent.classList.add('failure-node');
+                    storyContent.innerHTML += `<div class="end-message failure-message">FAILURE! The story ends here...</div>`;
+                }
+
+                const choicesContainer = document.getElementById('choicesContainer');
+                choicesContainer.innerHTML = '';
+                
+                if (phase.choices && phase.choices.length > 0) {
+                    phase.choices.forEach((choice) => {
+                        const button = document.createElement('button');
+                        button.textContent = choice.text;
+                        button.addEventListener('click', () => {
+                            this.currentStory.currentPhase = choice.nextPhase;
+                            this.updateDisplay();
+                        });
+                        choicesContainer.appendChild(button);
+                    });
+                } else {
+                    const restartButton = document.createElement('button');
+                    restartButton.textContent = "Choose Another Story";
+                    restartButton.addEventListener('click', () => {
+                        document.getElementById('storySelector').style.display = 'block';
+                        document.getElementById('storyDisplay').style.display = 'none';
+                    });
+                    choicesContainer.appendChild(restartButton);
+                }
+            }
+
+            updateLibraryList() {
+                const libraryList = document.getElementById('libraryList');
+                libraryList.innerHTML = '';
+                
+                if (this.library.length === 0) {
+                    libraryList.innerHTML = '<p>No stories available. Please create stories in the editor.</p>';
+                    return;
+                }
+                
+                this.library.forEach((story) => {
+                    const item = document.createElement('div');
+                    item.className = 'library-item';
+                    item.textContent = story.title;
+                    item.addEventListener('click', () => {
+                        this.loadStory(story);
+                    });
+                    libraryList.appendChild(item);
+                });
+            }
+        }
+
+        // Initialize the player
+        const player = new StoryPlayer();
+    </script>
+</body>
+</html>
