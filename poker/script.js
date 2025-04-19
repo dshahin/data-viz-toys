@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const csvDataEl = document.getElementById('csvData');
     const savedStructuresList = document.getElementById('savedStructuresList');
     const stickyHeader = document.getElementById('stickyHeader');
+    const toggleSoundBtn = document.getElementById('toggleSound');
+
 
     // Sample Structure Buttons
     const loadShortBtn = document.getElementById('loadShort');
@@ -46,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let allStructures = [];
     let currentStructureId = null;
+
+    let soundEnabled = true
     
     // Sample Structures
     const sampleStructures = {
@@ -105,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupStickyHeader();
         checkHeaderOnLoad();
         setupPageVisibilityHandler(); // Add this line
+        setupSoundControls();
     
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
@@ -155,6 +160,51 @@ document.addEventListener('DOMContentLoaded', function() {
             header.classList.add('collapsed');
         }
     }
+
+    function setupSoundControls() {
+        // Load sound preference from localStorage
+        soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
+        updateSoundButton();
+        
+        toggleSoundBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            localStorage.setItem('soundEnabled', soundEnabled);
+            updateSoundButton();
+        });
+    }
+    
+    function updateSoundButton() {
+        if (soundEnabled) {
+            toggleSoundBtn.classList.remove('muted');
+            toggleSoundBtn.title = "Mute sounds";
+        } else {
+            toggleSoundBtn.classList.add('muted');
+            toggleSoundBtn.title = "Unmute sounds";
+        }
+    }
+    
+    function playRoundChangeSound() {
+        if (!soundEnabled) return;
+        
+        // Create audio context (works in most modern browsers)
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioContext.currentTime + 0.3);
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.3);
+    }
+
     
     function loadFromLocalStorage() {
         const savedData = localStorage.getItem('pokerTournamentClock');
@@ -449,6 +499,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function prevRound() {
         if (tournament.currentRoundIndex > 0) {
             tournament.currentRoundIndex--;
+            playRoundChangeSound();
             resetRound();
             renderRoundsTable(); // Ensure highlighting updates
         }
@@ -457,10 +508,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function nextRound() {
         if (tournament.currentRoundIndex < tournament.rounds.length - 1) {
             tournament.currentRoundIndex++;
+            playRoundChangeSound();
             resetRound();
             renderRoundsTable(); // Ensure highlighting updates
         } else {
             // End of tournament
+            playRoundChangeSound();
             pauseTimer();
             alert('Tournament structure completed!');
         }
