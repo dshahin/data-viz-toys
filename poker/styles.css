@@ -429,46 +429,7 @@ textarea {
     transition: transform 0.2s ease-out, padding 0.2s ease-out;
 }
 
-.sticky-header.collapsed {
-    padding: 8px 10px;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
-    transform: translateY(-30%); /* Partial collapse */
-    opacity: 0.9;
-}
 
-.sticky-header:not(.collapsed) {
-    transform: translateY(0);
-    opacity: 1;
-}
-
-.sticky-header.collapsed .time-remaining {
-    font-size: min(2.5rem, 8vw); /* Responsive font size */
-    margin: 0;
-    text-align: center;
-    flex-grow: 1;
-    min-width: 0; /* Allows text shrinking */
-}
-
-.sticky-header.collapsed .round-info {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin: 0;
-    flex-shrink: 0;
-}
-
-.sticky-header.collapsed .round-number,
-.sticky-header.collapsed .blinds,
-.sticky-header.collapsed .ante {
-    padding: 4px 8px;
-    font-size: 0.9rem;
-    white-space: nowrap;
-    background-color: var(--primary-color);
-    border-radius: 4px;
-}
 
 .sound-control {
     position: fixed;
