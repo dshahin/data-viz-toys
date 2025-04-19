@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupPageVisibilityHandler(); // Add this line
         setupSoundControls();
         setupMobileSoundUnlock();
-        setupRandomColorButton();
+        // setupRandomColorButton();
         loadHeaderColor();
         playVictoryFanfare();
         setupSpeech();
@@ -226,15 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('headerColor', newColor);
     }
     
-    function setupRandomColorButton() {
-        const colorBtn = document.createElement('button');
-        colorBtn.innerHTML = '<i class="fas fa-palette"></i>';
-        colorBtn.className = 'btn color-btn';
-        colorBtn.title = 'Change header color';
-        colorBtn.addEventListener('click', setRandomHeaderColor);
-        
-        document.querySelector('.controls').appendChild(colorBtn);
-    }
     
     function loadHeaderColor() {
         const savedColor = localStorage.getItem('headerColor');
