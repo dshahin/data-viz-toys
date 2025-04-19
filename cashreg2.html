@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Register App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5; }
+        .receipt-container { background-color: white; border: 1px dashed #ccc; min-height: 300px; padding: 20px; font-family: 'Courier New', monospace; }
+        .barcode-scanner { background-color: #f8f9fa; border-radius: 5px; padding: 15px; margin-bottom: 20px; }
+        .inventory-item { cursor: pointer; transition: background-color 0.2s; }
+        .inventory-item:hover { background-color: #e9ecef; }
+        .btn-action { margin: 2px; }
+        .negative { color: #dc3545; }
+        .positive { color: #28a745; }
+        @media print {
+            .no-print { display: none !important; }
+            .receipt-container { border: none; }
+        }
+        #authStatus { min-height: 24px; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Google Sheets Connection</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="sheetId" class="form-label">Google Sheet ID</label>
+                            <input type="text" class="form-control" id="sheetId" placeholder="Enter Google Sheet ID">
+                        </div>
+                        <div id="authStatus" class="mb-2"></div>
+                        <button id="authBtn" class="btn btn-success">Authorize with Google</button>
+                        <button id="connectBtn" class="btn btn-primary" disabled>Connect to Sheet</button>
+                    </div>
+                </div>
+
+                <!-- Rest of your HTML remains the same -->
+                <!-- ... -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Stripe Payment Modal (same as before) -->
+    <!-- ... -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ======================
+        // Configuration
+        // ======================
+        const CONFIG = {
+            CLIENT_ID: '585467716936-2ekjjm1uqakjgjoqag18haqgee1m8f9j.apps.googleusercontent.com', // Replace with your client ID
+            SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
+            API_KEY: null, // Not needed with OAuth
+            TAX_RATE: 0.08
+        };
+
+        // ======================
+        // App State
+        // ======================
+        const AppState = {
+            inventory: [],
+            currentTransaction: {
+                items: [],
+                isReturn: false,
+                receiptNumber: generateReceiptNumber(),
+                date: new Date()
+            },
+            stripe: null,
+            elements: null,
+            cardElement: null,
+            sheetConnected: false,
+            tokenClient: null,
+            gapiLoaded: false,
+            gisLoaded: false
+        };
+
+        // ======================
+        // DOM Elements
+        // ======================
+        const DOM = {
+            authBtn: document.getElementById('authBtn'),
+            connectBtn: document.getElementById('connectBtn'),
+            authStatus: document.getElementById('authStatus'),
+            sheetIdInput: document.getElementById('sheetId'),
+            // Add all other DOM elements here...
+        };
+
+        // ======================
+        // Initialization
+        // ======================
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupEventListeners();
+            await loadGoogleAPI();
+            await loadStripe();
+            updateReceiptHeader();
+        });
+
+        // ======================
+        // Google API Setup
+        // ======================
+        async function loadGoogleAPI() {
+            try {
+                await new Promise((resolve) => {
+                    const gapiScript = document.createElement('script');
+                    gapiScript.src = 'https://apis.google.com/js/api.js';
+                    gapiScript.onload = () => {
+                        gapi.load('client', () => {
+                            gapi.client.init({})
+                                .then(() => {
+                                    AppState.gapiLoaded = true;
+                                    console.log('Google API client initialized');
+                                    resolve();
+                                })
+                                .catch(console.error);
+                        });
+                    };
+                    document.body.appendChild(gapiScript);
+                });
+
+                await new Promise((resolve) => {
+                    const gisScript = document.createElement('script');
+                    gisScript.src = 'https://accounts.google.com/gsi/client';
+                    gisScript.onload = () => {
+                        AppState.tokenClient = google.accounts.oauth2.initTokenClient({
+                            client_id: CONFIG.CLIENT_ID,
+                            scope: CONFIG.SCOPES,
+                            callback: (tokenResponse) => {
+                                if (tokenResponse && tokenResponse.access_token) {
+                                    gapi.client.setToken(tokenResponse);
+                                    DOM.authStatus.innerHTML = '<div class="alert alert-success">Successfully authorized!</div>';
+                                    DOM.connectBtn.disabled = false;
+                                }
+                            },
+                        });
+                        AppState.gisLoaded = true;
+                        resolve();
+                    };
+                    document.body.appendChild(gisScript);
+                });
+            } catch (error) {
+                console.error('Failed to load Google APIs:', error);
+                DOM.authStatus.innerHTML = `<div class="alert alert-danger">Failed to load Google APIs: ${error.message}</div>`;
+            }
+        }
+
+        // ======================
+        // Authentication
+        // ======================
+        function setupEventListeners() {
+            DOM.authBtn.addEventListener('click', handleAuthClick);
+            DOM.connectBtn.addEventListener('click', handleConnectClick);
+            // Add all other event listeners...
+        }
+
+        function handleAuthClick() {
+            if (!AppState.tokenClient) {
+                DOM.authStatus.innerHTML = '<div class="alert alert-danger">Google APIs not loaded yet</div>';
+                return;
+            }
+            
+            DOM.authStatus.innerHTML = '<div class="alert alert-info">Redirecting to Google authentication...</div>';
+            AppState.tokenClient.requestAccessToken({ prompt: 'consent' });
+        }
+
+        async function handleConnectClick() {
+            const sheetId = DOM.sheetIdInput.value.trim();
+            if (!sheetId) {
+                DOM.authStatus.innerHTML = '<div class="alert alert-danger">Please enter a Sheet ID</div>';
+                return;
+            }
+
+            try {
+                DOM.authStatus.innerHTML = '<div class="alert alert-info">Loading inventory...</div>';
+                await loadInventory(sheetId);
+                
+                DOM.authStatus.innerHTML = '<div class="alert alert-info">Loading recent transactions...</div>';
+                await loadRecentTransactions(sheetId);
+                
+                AppState.sheetConnected = true;
+                DOM.authStatus.innerHTML = '<div class="alert alert-success">Connected to Google Sheet successfully!</div>';
+            } catch (error) {
+                console.error('Connection failed:', error);
+                DOM.authStatus.innerHTML = `<div class="alert alert-danger">Connection failed: ${error.message}</div>`;
+            }
+        }
+
+        // ======================
+        // Sheet Operations
+        // ======================
+        async function loadInventory(sheetId) {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: sheetId,
+                    range: 'Inventory!A2:E',
+                });
+                
+                AppState.inventory = response.result.values.map(row => ({
+                    barcode: row[0],
+                    description: row[1],
+                    price: parseFloat(row[2]),
+                    taxable: row[3].toLowerCase() === 'yes',
+                    stock: parseInt(row[4])
+                }));
+
+                renderInventoryDropdown();
+                renderInventoryTable();
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+                throw new Error('Failed to load inventory');
+            }
+        }
+
+        async function loadRecentTransactions(sheetId) {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: sheetId,
+                    range: 'Ledger!A2:F',
+                });
+                
+                if (response.result.values) {
+                    renderRecentTransactions(response.result.values);
+                }
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+                throw new Error('Failed to load recent transactions');
+            }
+        }
+
+        // ======================
+        // Stripe Integration
+        // ======================
+        async function loadStripe() {
+            try {
+                AppState.stripe = Stripe('pk_test_your_key_here'); // Replace with your test key
+                AppState.elements = AppState.stripe.elements();
+                AppState.cardElement = AppState.elements.create('card');
+                AppState.cardElement.mount('#card-element');
+            } catch (error) {
+                console.error('Failed to load Stripe:', error);
+            }
+        }
+
+        // ======================
+        // Helper Functions
+        // ======================
+        function generateReceiptNumber() {
+            return 'R' + Math.floor(100000 + Math.random() * 900000);
+        }
+
+        function updateReceiptHeader() {
+            const now = new Date();
+            document.getElementById('receiptDate').textContent = `Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+            document.getElementById('receiptNumber').textContent = `Receipt #: ${AppState.currentTransaction.receiptNumber}`;
+        }
+
+        // Add all other helper functions...
+
+        // ======================
+        // Initial UI Rendering
+        // ======================
+        function renderInventoryDropdown() {
+            const select = document.getElementById('manualItemSelect');
+            select.innerHTML = '<option value="">Select an item...</option>';
+            AppState.inventory.forEach(item => {
+                select.innerHTML += `<option value="${item.barcode}">${item.description} (${item.barcode})</option>`;
+            });
+        }
+
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+            
+            AppState.inventory.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'inventory-item';
+                row.innerHTML = `
+                    <td>${item.barcode}</td>
+                    <td>${item.description}</td>
+                    <td>$${item.price.toFixed(2)}</td>
+                    <td>${item.stock}</td>
+                `;
+                row.addEventListener('click', () => {
+                    document.getElementById('manualItemSelect').value = item.barcode;
+                    document.getElementById('barcodeInput').value = item.barcode;
+                    updateQuantityBasedOnStock(item);
+                });
+                tbody.appendChild(row);
+            });
+        }
+
+        // Add all other rendering functions...
+    </script>
+</body>
+</html>

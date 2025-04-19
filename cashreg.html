@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Register App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .receipt-container {
+            background-color: white;
+            border: 1px dashed #ccc;
+            min-height: 300px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+        }
+        .barcode-scanner {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .inventory-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .inventory-item:hover {
+            background-color: #e9ecef;
+        }
+        .btn-action {
+            margin: 2px;
+        }
+        .negative {
+            color: #dc3545;
+        }
+        .positive {
+            color: #28a745;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .receipt-container {
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Google Sheets Connection</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="sheetId" class="form-label">Google Sheet ID</label>
+                            <input type="text" class="form-control" id="sheetId" placeholder="Enter Google Sheet ID">
+                        </div>
+                        <div class="mb-3">
+                            <label for="apiKey" class="form-label">Google API Key</label>
+                            <input type="password" class="form-control" id="apiKey" placeholder="Enter Google API Key">
+                        </div>
+                        <button id="connectBtn" class="btn btn-success">Connect to Sheet</button>
+                        <div id="connectionStatus" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Barcode Scanner</h5>
+                    </div>
+                    <div class="card-body barcode-scanner">
+                        <div class="mb-3">
+                            <label for="barcodeInput" class="form-label">Scan Barcode</label>
+                            <input type="text" class="form-control" id="barcodeInput" placeholder="Scan or enter barcode" autofocus>
+                        </div>
+                        <div class="mb-3">
+                            <label for="manualItemSelect" class="form-label">Or select item manually</label>
+                            <select class="form-select" id="manualItemSelect">
+                                <option value="">Select an item...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quantityInput" class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="quantityInput" value="1" min="1">
+                        </div>
+                        <button id="addItemBtn" class="btn btn-primary">Add Item</button>
+                        <button id="returnItemBtn" class="btn btn-warning">Return Item</button>
+                    </div>
+                </div>
+
+                <div class="card mb-4 no-print">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Inventory Search</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="inventorySearch" placeholder="Search inventory...">
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Barcode</th>
+                                        <th>Description</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventoryTableBody">
+                                    <!-- Inventory items will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Current Transaction</h5>
+                            <div>
+                                <span id="transactionTypeBadge" class="badge bg-light text-dark">SALE</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="receipt-container mb-3" id="receiptContainer">
+                            <div class="text-center mb-2">
+                                <h4>Hijinx Comics</h4>
+                                <p>2050 Lincoln Ave</p>
+                                <p>Tel: (415) 326-3913</p>
+                                <hr>
+                                <p id="receiptDate">Date: Loading...</p>
+                                <p id="receiptNumber">Receipt #: --</p>
+                                <hr>
+                            </div>
+                            <table class="table table-sm table-borderless" id="receiptItems">
+                                <thead>
+                                    <tr>
+                                        <th>Qty</th>
+                                        <th>Description</th>
+                                        <th class="text-end">Price</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Receipt items will be added here -->
+                                </tbody>
+                            </table>
+                            <hr>
+                            <div class="text-end">
+                                <p>Subtotal: <span id="subtotal">$0.00</span></p>
+                                <p>Tax: <span id="tax">$0.00</span></p>
+                                <h5>Total: <span id="total">$0.00</span></h5>
+                            </div>
+                            <hr>
+                            <div class="text-center">
+                                <p>Thank you for your business!</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap no-print">
+                            <button id="newTransactionBtn" class="btn btn-secondary btn-action">New Transaction</button>
+                            <button id="voidItemBtn" class="btn btn-danger btn-action">Void Last Item</button>
+                            <button id="printReceiptBtn" class="btn btn-info btn-action">Print Receipt</button>
+                            <button id="completeCashBtn" class="btn btn-success btn-action">Complete (Cash)</button>
+                            <button id="completeCardBtn" class="btn btn-primary btn-action">Complete (Card)</button>
+                            <button id="toggleReturnBtn" class="btn btn-warning btn-action">Switch to Return</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card no-print">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Recent Transactions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Receipt #</th>
+                                        <th>Items</th>
+                                        <th class="text-end">Total</th>
+                                        <th>Payment</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentTransactions">
+                                    <!-- Recent transactions will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stripe Payment Modal -->
+    <div class="modal fade" id="stripeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Process Card Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="payment-form">
+                        <div id="card-element" class="mb-3"></div>
+                        <div id="card-errors" role="alert" class="text-danger mb-3"></div>
+                        <button id="submit-payment" class="btn btn-primary w-100">Process Payment of <span id="payment-amount"></span></button>
+                    </div>
+                    <div id="payment-success" style="display: none;">
+                        <div class="alert alert-success">Payment successful!</div>
+                        <button class="btn btn-secondary w-100" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let inventory = [];
+        let currentTransaction = {
+            items: [],
+            isReturn: false,
+            receiptNumber: generateReceiptNumber(),
+            date: new Date()
+        };
+        let stripe = null;
+        let elements = null;
+        let cardElement = null;
+        let sheetConnected = false;
+        const taxRate = 0.08; // 8% sales tax - adjust as needed
+
+        // DOM elements
+        const barcodeInput = document.getElementById('barcodeInput');
+        const manualItemSelect = document.getElementById('manualItemSelect');
+        const quantityInput = document.getElementById('quantityInput');
+        const addItemBtn = document.getElementById('addItemBtn');
+        const returnItemBtn = document.getElementById('returnItemBtn');
+        const inventoryTableBody = document.getElementById('inventoryTableBody');
+        const inventorySearch = document.getElementById('inventorySearch');
+        const receiptItems = document.querySelector('#receiptItems tbody');
+        const subtotalEl = document.getElementById('subtotal');
+        const taxEl = document.getElementById('tax');
+        const totalEl = document.getElementById('total');
+        const newTransactionBtn = document.getElementById('newTransactionBtn');
+        const voidItemBtn = document.getElementById('voidItemBtn');
+        const printReceiptBtn = document.getElementById('printReceiptBtn');
+        const completeCashBtn = document.getElementById('completeCashBtn');
+        const completeCardBtn = document.getElementById('completeCardBtn');
+        const toggleReturnBtn = document.getElementById('toggleReturnBtn');
+        const transactionTypeBadge = document.getElementById('transactionTypeBadge');
+        const receiptDate = document.getElementById('receiptDate');
+        const receiptNumber = document.getElementById('receiptNumber');
+        const connectBtn = document.getElementById('connectBtn');
+        const sheetIdInput = document.getElementById('sheetId');
+        const apiKeyInput = document.getElementById('apiKey');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const recentTransactions = document.getElementById('recentTransactions');
+        const stripeModal = new bootstrap.Modal(document.getElementById('stripeModal'));
+        const paymentAmountEl = document.getElementById('payment-amount');
+        const submitPaymentBtn = document.getElementById('submit-payment');
+        const paymentSuccessEl = document.getElementById('payment-success');
+        const cardErrorsEl = document.getElementById('card-errors');
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            updateReceiptHeader();
+            setupEventListeners();
+            loadStripe();
+        });
+
+        function setupEventListeners() {
+            // Barcode scanning
+            barcodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleAddItem();
+                }
+            });
+
+            // Manual item selection
+            manualItemSelect.addEventListener('change', function() {
+                if (this.value) {
+                    const item = inventory.find(i => i.barcode === this.value);
+                    if (item) {
+                        updateQuantityBasedOnStock(item);
+                    }
+                }
+            });
+
+            // Buttons
+            addItemBtn.addEventListener('click', handleAddItem);
+            returnItemBtn.addEventListener('click', () => {
+                currentTransaction.isReturn = true;
+                updateTransactionTypeDisplay();
+                handleAddItem();
+            });
+            newTransactionBtn.addEventListener('click', startNewTransaction);
+            voidItemBtn.addEventListener('click', voidLastItem);
+            printReceiptBtn.addEventListener('click', printReceipt);
+            completeCashBtn.addEventListener('click', () => completeTransaction('cash'));
+            completeCardBtn.addEventListener('click', () => completeTransaction('card'));
+            toggleReturnBtn.addEventListener('click', toggleReturn);
+            connectBtn.addEventListener('click', connectToGoogleSheet);
+
+            // Inventory search
+            inventorySearch.addEventListener('input', function() {
+                filterInventory(this.value);
+            });
+        }
+
+        function loadStripe() {
+            // Initialize Stripe with your publishable key
+            // Note: In a production app, you should not hardcode this in the client-side code
+            // Instead, fetch it from your server
+            stripe = Stripe('pk_test_51JfZ6Z...'); // Replace with your test publishable key
+            elements = stripe.elements();
+            cardElement = elements.create('card');
+            cardElement.mount('#card-element');
+
+            cardElement.on('change', function(event) {
+                if (event.error) {
+                    cardErrorsEl.textContent = event.error.message;
+                } else {
+                    cardErrorsEl.textContent = '';
+                }
+            });
+
+            submitPaymentBtn.addEventListener('click', processStripePayment);
+        }
+
+        async function processStripePayment() {
+            const amount = calculateTotal() * 100; // Convert to cents
+            const { error, paymentMethod } = await stripe.createPaymentMethod({
+                type: 'card',
+                card: cardElement,
+            });
+
+            if (error) {
+                cardErrorsEl.textContent = error.message;
+                return;
+            }
+
+            // In a real app, you would send the paymentMethod.id to your server
+            // along with the amount to create a payment intent
+            // For this demo, we'll simulate a successful payment
+            simulateServerPayment(paymentMethod.id, amount);
+        }
+
+        function simulateServerPayment(paymentMethodId, amount) {
+            // Simulate server processing delay
+            submitPaymentBtn.disabled = true;
+            cardErrorsEl.textContent = 'Processing payment...';
+
+            setTimeout(() => {
+                // Simulate successful payment
+                paymentSuccessEl.style.display = 'block';
+                document.getElementById('payment-form').style.display = 'none';
+                submitPaymentBtn.disabled = false;
+
+                // Complete the transaction
+                completeTransaction('card', paymentMethodId);
+            }, 2000);
+        }
+
+        function connectToGoogleSheet() {
+            const sheetId = sheetIdInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!sheetId || !apiKey) {
+                connectionStatus.innerHTML = '<div class="alert alert-danger">Please enter both Sheet ID and API Key</div>';
+                return;
+            }
+
+            connectionStatus.innerHTML = '<div class="alert alert-info">Connecting to Google Sheet...</div>';
+
+            // Load inventory from Google Sheets
+            const inventoryUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Inventory!A2:E?key=${apiKey}`;
+            
+            fetch(inventoryUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        connectionStatus.innerHTML = `<div class="alert alert-danger">Error: ${data.error.message}</div>`;
+                        return;
+                    }
+
+                    inventory = data.values.map(row => ({
+                        barcode: row[0],
+                        description: row[1],
+                        price: parseFloat(row[2]),
+                        taxable: row[3].toLowerCase() === 'yes',
+                        stock: parseInt(row[4])
+                    }));
+
+                    // Populate manual item select
+                    manualItemSelect.innerHTML = '<option value="">Select an item...</option>';
+                    inventory.forEach(item => {
+                        manualItemSelect.innerHTML += `<option value="${item.barcode}">${item.description} (${item.barcode})</option>`;
+                    });
+
+                    // Populate inventory table
+                    renderInventoryTable();
+
+                    // Load recent transactions
+                    const ledgerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Ledger!A2:F?key=${apiKey}`;
+                    return fetch(ledgerUrl);
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.values) {
+                        renderRecentTransactions(data.values);
+                    }
+                    sheetConnected = true;
+                    connectionStatus.innerHTML = '<div class="alert alert-success">Connected to Google Sheet successfully!</div>';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    connectionStatus.innerHTML = `<div class="alert alert-danger">Connection failed: ${error.message}</div>`;
+                });
+        }
+
+        function renderInventoryTable() {
+            inventoryTableBody.innerHTML = '';
+            inventory.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'inventory-item';
+                row.innerHTML = `
+                    <td>${item.barcode}</td>
+                    <td>${item.description}</td>
+                    <td>$${item.price.toFixed(2)}</td>
+                    <td>${item.stock}</td>
+                `;
+                row.addEventListener('click', () => {
+                    manualItemSelect.value = item.barcode;
+                    barcodeInput.value = item.barcode;
+                    updateQuantityBasedOnStock(item);
+                });
+                inventoryTableBody.appendChild(row);
+            });
+        }
+
+        function filterInventory(searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const rows = inventoryTableBody.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        }
+
+        function renderRecentTransactions(transactions) {
+            recentTransactions.innerHTML = '';
+            
+            // Show only the last 10 transactions
+            const recent = transactions.slice(-10).reverse();
+            
+            recent.forEach(tx => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${tx[0]}</td>
+                    <td>${tx[1]}</td>
+                    <td>${tx[2]}</td>
+                    <td class="text-end">$${parseFloat(tx[3]).toFixed(2)}</td>
+                    <td>${tx[4]}</td>
+                `;
+                if (tx[5] === 'RETURN') {
+                    row.classList.add('table-warning');
+                }
+                recentTransactions.appendChild(row);
+            });
+        }
+
+        function handleAddItem() {
+            const barcode = barcodeInput.value.trim();
+            const manualBarcode = manualItemSelect.value;
+            const finalBarcode = barcode || manualBarcode;
+            
+            if (!finalBarcode) {
+                alert('Please scan a barcode or select an item');
+                return;
+            }
+
+            const item = inventory.find(i => i.barcode === finalBarcode);
+            if (!item) {
+                alert('Item not found in inventory');
+                return;
+            }
+
+            let quantity = parseInt(quantityInput.value);
+            if (isNaN(quantity) || quantity < 1) {
+                alert('Please enter a valid quantity');
+                return;
+            }
+
+            // Adjust quantity for returns
+            if (currentTransaction.isReturn) {
+                quantity = -Math.abs(quantity);
+            } else {
+                quantity = Math.abs(quantity);
+            }
+
+            // Check stock for sales (not returns)
+            if (quantity > 0 && item.stock < quantity) {
+                alert(`Not enough stock! Only ${item.stock} available.`);
+                return;
+            }
+
+            // Add item to transaction
+            addItemToTransaction(item, quantity);
+
+            // Clear inputs
+            barcodeInput.value = '';
+            manualItemSelect.value = '';
+            quantityInput.value = '1';
+            barcodeInput.focus();
+        }
+
+        function addItemToTransaction(item, quantity) {
+            // Check if item already exists in transaction
+            const existingItemIndex = currentTransaction.items.findIndex(i => i.barcode === item.barcode);
+            
+            if (existingItemIndex >= 0) {
+                // Update existing item quantity
+                const newQuantity = currentTransaction.items[existingItemIndex].quantity + quantity;
+                
+                // For sales, check stock again with updated quantity
+                if (newQuantity > 0 && item.stock < newQuantity) {
+                    alert(`Not enough stock for additional quantity! Only ${item.stock - currentTransaction.items[existingItemIndex].quantity} more available.`);
+                    return;
+                }
+                
+                if (newQuantity === 0) {
+                    // Remove item if quantity becomes zero
+                    currentTransaction.items.splice(existingItemIndex, 1);
+                } else {
+                    // Update quantity
+                    currentTransaction.items[existingItemIndex].quantity = newQuantity;
+                }
+            } else {
+                // Add new item
+                currentTransaction.items.push({
+                    ...item,
+                    quantity: quantity
+                });
+            }
+
+            updateReceiptDisplay();
+        }
+
+        function updateReceiptDisplay() {
+            receiptItems.innerHTML = '';
+            
+            currentTransaction.items.forEach(item => {
+                const row = document.createElement('tr');
+                const total = item.price * Math.abs(item.quantity);
+                const rowClass = item.quantity < 0 ? 'negative' : 'positive';
+                
+                row.innerHTML = `
+                    <td>${Math.abs(item.quantity)}</td>
+                    <td>${item.description} ${item.quantity < 0 ? '(RETURN)' : ''}</td>
+                    <td class="text-end">$${item.price.toFixed(2)}</td>
+                    <td class="text-end ${rowClass}">$${total.toFixed(2)}</td>
+                `;
+                receiptItems.appendChild(row);
+            });
+
+            updateTotals();
+        }
+
+        function updateTotals() {
+            const subtotal = calculateSubtotal();
+            const tax = calculateTax(subtotal);
+            const total = subtotal + tax;
+
+            subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+            taxEl.textContent = `$${tax.toFixed(2)}`;
+            totalEl.textContent = `$${total.toFixed(2)}`;
+        }
+
+        function calculateSubtotal() {
+            return currentTransaction.items.reduce((sum, item) => {
+                return sum + (item.price * item.quantity);
+            }, 0);
+        }
+
+        function calculateTax(subtotal) {
+            const taxableAmount = currentTransaction.items.reduce((sum, item) => {
+                return item.taxable ? sum + (item.price * Math.abs(item.quantity)) : sum;
+            }, 0);
+            
+            return taxableAmount * taxRate;
+        }
+
+        function calculateTotal() {
+            const subtotal = calculateSubtotal();
+            const tax = calculateTax(subtotal);
+            return subtotal + tax;
+        }
+
+        function startNewTransaction() {
+            if (currentTransaction.items.length > 0 && !confirm('Are you sure you want to start a new transaction? The current transaction will be cleared.')) {
+                return;
+            }
+            
+            currentTransaction = {
+                items: [],
+                isReturn: false,
+                receiptNumber: generateReceiptNumber(),
+                date: new Date()
+            };
+            
+            updateReceiptHeader();
+            updateReceiptDisplay();
+            updateTransactionTypeDisplay();
+            barcodeInput.focus();
+        }
+
+        function voidLastItem() {
+            if (currentTransaction.items.length === 0) {
+                alert('No items to void');
+                return;
+            }
+            
+            currentTransaction.items.pop();
+            updateReceiptDisplay();
+        }
+
+        function printReceipt() {
+            window.print();
+        }
+
+        function toggleReturn() {
+            currentTransaction.isReturn = !currentTransaction.isReturn;
+            updateTransactionTypeDisplay();
+        }
+
+        function updateTransactionTypeDisplay() {
+            if (currentTransaction.isReturn) {
+                transactionTypeBadge.textContent = 'RETURN';
+                transactionTypeBadge.classList.remove('bg-light');
+                transactionTypeBadge.classList.add('bg-warning');
+            } else {
+                transactionTypeBadge.textContent = 'SALE';
+                transactionTypeBadge.classList.remove('bg-warning');
+                transactionTypeBadge.classList.add('bg-light');
+            }
+        }
+
+        function updateReceiptHeader() {
+            const now = new Date();
+            receiptDate.textContent = `Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+            receiptNumber.textContent = `Receipt #: ${currentTransaction.receiptNumber}`;
+        }
+
+        function updateQuantityBasedOnStock(item) {
+            if (item && !currentTransaction.isReturn) {
+                const maxQuantity = Math.min(item.stock, 99);
+                quantityInput.max = maxQuantity;
+                if (parseInt(quantityInput.value) > maxQuantity) {
+                    quantityInput.value = maxQuantity;
+                }
+            }
+        }
+
+        function generateReceiptNumber() {
+            return 'R' + Math.floor(100000 + Math.random() * 900000);
+        }
+
+        async function completeTransaction(paymentMethod, paymentId = null) {
+            if (currentTransaction.items.length === 0) {
+                alert('No items in transaction');
+                return;
+            }
+
+            const total = calculateTotal();
+            
+            if (paymentMethod === 'card') {
+                // Show Stripe payment modal
+                paymentAmountEl.textContent = `$${total.toFixed(2)}`;
+                paymentSuccessEl.style.display = 'none';
+                document.getElementById('payment-form').style.display = 'block';
+                stripeModal.show();
+                return;
+            }
+
+            // For cash payments or after successful card payment
+            await saveTransactionToGoogleSheet(paymentMethod, paymentId);
+            
+            // Print receipt for cash payments
+            if (paymentMethod === 'cash') {
+                printReceipt();
+            }
+            
+            // Start new transaction
+            startNewTransaction();
+        }
+
+        async function saveTransactionToGoogleSheet(paymentMethod, paymentId = null) {
+            if (!sheetConnected) {
+                alert('Not connected to Google Sheet. Transaction not saved.');
+                return;
+            }
+
+            const sheetId = sheetIdInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+            const now = new Date().toISOString();
+
+            // Prepare transaction data for the ledger
+            const itemsSummary = currentTransaction.items.map(item => 
+                `${Math.abs(item.quantity)}x ${item.description}`
+            ).join(', ');
+
+            const ledgerData = [
+                now, // Timestamp
+                currentTransaction.reiptNumber,
+                itemsSummary,
+                calculateTotal().toFixed(2),
+                paymentMethod.toUpperCase(),
+                currentTransaction.isReturn ? 'RETURN' : 'SALE'
+            ];
+
+            // Prepare inventory updates
+            const inventoryUpdates = currentTransaction.items.map(item => {
+                const stockChange = -item.quantity; // Negative because sales reduce stock
+                return {
+                    barcode: item.barcode,
+                    stockChange: stockChange
+                };
+            });
+
+            try {
+                // Update inventory in Google Sheets
+                await updateInventoryStock(sheetId, apiKey, inventoryUpdates);
+                
+                // Add transaction to ledger
+                await addTransactionToLedger(sheetId, apiKey, ledgerData);
+                
+                // Refresh inventory and recent transactions
+                await connectToGoogleSheet();
+                
+                alert('Transaction completed successfully!');
+            } catch (error) {
+                console.error('Error saving transaction:', error);
+                alert('Error saving transaction to Google Sheet. Please check console for details.');
+            }
+        }
+
+        async function updateInventoryStock(sheetId, apiKey, updates) {
+            // This is a simplified approach. In a real app, you would need to:
+            // 1. Get current inventory
+            // 2. Calculate new stock values
+            // 3. Update the sheet
+            
+            // For this demo, we'll just log the updates
+            console.log('Inventory updates:', updates);
+            
+            // Note: The Google Sheets API doesn't easily support batch updates with the simple API key auth
+            // In a production app, you would need to use the proper Google Sheets API with OAuth
+            // or implement a server-side proxy to handle these updates securely
+        }
+
+        async function addTransactionToLedger(sheetId, apiKey, data) {
+            // Similar to inventory updates, this would require proper API implementation
+            console.log('Transaction data to save:', data);
+            
+            // In a real app, you would use the Google Sheets API to append this row to the ledger
+        }
+    </script>
+</body>
+</html>
