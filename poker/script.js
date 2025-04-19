@@ -103,6 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateClockDisplay();
         setupEventListeners();
         setupStickyHeader();
+        checkHeaderOnLoad();
         setupPageVisibilityHandler(); // Add this line
     
     // Clear any running state that might be left over
@@ -114,36 +115,45 @@ document.addEventListener('DOMContentLoaded', function() {
         const header = document.getElementById('stickyHeader');
         const headerHeight = header.offsetHeight;
         
+        // Create a small sentinel element at the top of the page
+        const sentinel = document.createElement('div');
+        sentinel.style.position = 'absolute';
+        sentinel.style.top = '0';
+        sentinel.style.height = '1px';
+        document.body.prepend(sentinel);
+        
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                const isScrollingDown = entry.boundingClientRect.top < -5;
-                header.classList.toggle('collapsed', isScrollingDown);
-                
-                // On very small screens, keep collapsed state always
-                if (window.innerWidth <= 480) {
+                // When sentinel is at or above viewport top, uncollapse header
+                if (entry.boundingClientRect.top >= 0) {
+                    header.classList.remove('collapsed');
+                } else {
                     header.classList.add('collapsed');
                 }
             });
         }, {
             root: null,
-            rootMargin: `${headerHeight}px 0px 0px 0px`,
+            rootMargin: '0px',
             threshold: 0
         });
     
-        // Create and observe sentinel element
-        const sentinel = document.createElement('div');
-        sentinel.style.position = 'absolute';
-        sentinel.style.top = `${headerHeight + 5}px`;
-        sentinel.style.height = '1px';
-        document.body.appendChild(sentinel);
         observer.observe(sentinel);
-    
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (window.innerWidth <= 480) {
-                header.classList.add('collapsed');
-            }
-        }, { passive: true });
+        
+        // Handle mobile touch to manually toggle
+        if ('ontouchstart' in window) {
+            header.addEventListener('click', function() {
+                this.classList.toggle('collapsed');
+            });
+        }
+    }
+
+    function checkHeaderOnLoad() {
+        const header = document.getElementById('stickyHeader');
+        if (window.scrollY <= 10) {
+            header.classList.remove('collapsed');
+        } else {
+            header.classList.add('collapsed');
+        }
     }
     
     function loadFromLocalStorage() {

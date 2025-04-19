@@ -19,6 +19,10 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     background-color: var(--secondary-color);
     color: var(--light-color);
@@ -76,7 +80,7 @@ main {
 }
 
 .time-remaining {
-    font-size: 5rem;
+    font-size: 10rem;
     font-weight: bold;
     margin: 10px 0;
     color: var(--light-color);
@@ -195,7 +199,6 @@ footer {
     display: none;
     position: fixed;
     z-index: 1100;
-    z-index: 1;
     left: 0;
     top: 0;
     width: 100%;
@@ -423,6 +426,7 @@ textarea {
     display: flex;
     flex-direction: column;
     align-items: center;
+    transition: transform 0.2s ease-out, padding 0.2s ease-out;
 }
 
 .sticky-header.collapsed {
@@ -431,6 +435,13 @@ textarea {
     justify-content: center;
     align-items: center;
     gap: 15px;
+    transform: translateY(-30%); /* Partial collapse */
+    opacity: 0.9;
+}
+
+.sticky-header:not(.collapsed) {
+    transform: translateY(0);
+    opacity: 1;
 }
 
 .sticky-header.collapsed .time-remaining {
@@ -464,6 +475,7 @@ textarea {
     .sticky-header.collapsed {
         padding: 6px 8px;
         gap: 10px;
+        transform: translateY(-25%); /* Less collapse on mobile */
     }
     
     .sticky-header.collapsed .time-remaining {
