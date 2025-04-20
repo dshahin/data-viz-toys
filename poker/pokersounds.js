@@ -266,3 +266,54 @@ function playMelodiousAlert() {
         osc.stop(now + note.duration + (i * 0.1));
     });
 }
+
+//play a wind chime sound
+function playWindChime() {
+    if (!soundEnabled) return;
+    
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioContext.currentTime;
+    
+    // Wind chime sound
+    const chimeFreqs = [440, 554.37, 659.25, 739.99, 880];
+    const chimeDurations = [0.3, 0.4, 0.5, 0.6];
+    
+    chimeFreqs.forEach((freq, i) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + chimeDurations[i % chimeDurations.length]);
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.start(now + (i * 0.2));
+        osc.stop(now + chimeDurations[i % chimeDurations.length] + (i * 0.2));
+    });
+}
+
+//play a boing sound
+function playBoingSound() {
+    if (!soundEnabled) return;
+    
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioContext.currentTime;
+    
+    // Create a boing sound using a square wave
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.type = 'square';
+    osc.frequency.value = 440; // A4
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.start(now);
+    osc.stop(now + 0.2);
+}

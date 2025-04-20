@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setupMobileSoundUnlock();
         loadHeaderColor();
         playVictoryFanfare();
-    
+        
 
     // Clear any running state that might be left over
         localStorage.removeItem('pokerTournamentClockRunning');
@@ -109,7 +109,12 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // Call this when rounds change
-        announceRoundDetails();
+        if(confirm("Enable voice announcements?")) {
+            soundEnabled = true;
+            // announceRoundDetails();
+        }else{
+            soundEnabled = false;
+        }
     }
 
     function setRandomHeaderColor() {
@@ -126,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Store the color in localStorage
         localStorage.setItem('headerColor', newColor);
+        playWindChime();
     }
     
     
@@ -173,6 +179,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update clock display when entering fullscreen
         if (isFullscreen) updateClockDisplay();
+
+        playBoingSound();
         
         // Optional: Change icon based on state
         const icon = header.querySelector('.fullscreen-icon');
@@ -493,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function nextRound() {
         if (tournament.currentRoundIndex < tournament.rounds.length - 1) {
             tournament.currentRoundIndex++;
-            playMelodiousAlert();
+            playRoundChangeSound();
             setRandomHeaderColor();
             resetRound();
             renderRoundsTable(); // Ensure highlighting updates
