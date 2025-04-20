@@ -109,12 +109,8 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         // Call this when rounds change
-        if(confirm("Enable voice announcements?")) {
-            soundEnabled = true;
-            // announceRoundDetails();
-        }else{
-            soundEnabled = false;
-        }
+        soundEnabled = true;
+                    
     }
 
     function setRandomHeaderColor() {

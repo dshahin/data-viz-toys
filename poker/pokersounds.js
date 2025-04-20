@@ -284,8 +284,8 @@ function playWindChime() {
         
         osc.type = 'sine';
         osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + chimeDurations[i % chimeDurations.length]);
+        gain.gain.setValueAtTime(1, now);
+        gain.gain.exponentialRampToValueAtTime(0.1, now + chimeDurations[i % chimeDurations.length]);
         
         osc.connect(gain);
         gain.connect(audioContext.destination);
