@@ -50,6 +50,10 @@ const TextToSpeech = (function() {
          * @param {function} onEnd - Optional callback when speech finishes
          */
         speak: function(text, onEnd) {
+            if (!soundEnabled) {
+                console.warn("Sound is disabled. Cannot speak.");
+                return;
+            }
             if (!isInitialized) {
                 console.warn("Speech synthesis not yet initialized. Trying again...");
                 initVoices().then(() => this.speak(text, onEnd));

@@ -450,8 +450,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function toggleTimer() {
         if (tournament.isRunning) {
             pauseTimer();
+            //speak
+            TextToSpeech.speak('Clock paused');
         } else {
             startTimer();
+            //speak
+            TextToSpeech.speak('Clock started');
         }
     }
     
@@ -518,7 +522,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetRound() {
         const currentRound = tournament.rounds[tournament.currentRoundIndex];
         tournament.timeRemaining = currentRound.duration * 60;
-        announceRoundDetails();
+        // announceRoundDetails();
+        //speak
+        TextToSpeech.speak(`Round ${tournament.currentRoundIndex + 1} reset to ${currentRound.duration} minutes`);
         if (tournament.isRunning) {
             pauseTimer();
             startTimer();
@@ -603,21 +609,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function playWarningSound() {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = 800;
-        gainNode.gain.value = 0.2;
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.1);
-    }
+    
     
     function renderRoundsTable() {
         roundsListEl.innerHTML = '';
