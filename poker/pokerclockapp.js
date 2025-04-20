@@ -116,6 +116,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loadHeaderColor();
         playVictoryFanfare();
         setupSpeech();
+        //set page background color
+        // document.body.style.backgroundColor = generateContrastingColor('#27ae60');
+        // generateContrastingColor();
 
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
@@ -134,7 +137,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentRound.isBreak) {
             announcement = `Break time. ${minutes} minute${minutes !== 1 ? 's' : ''} remaining.`;
         } else {
-            announcement = `Small blind: ${currentRound.smallBlind}. ` +
+            //say the round number
+            announcement = `Round ${tournament.currentRoundIndex + 1}. ` +
+                          `Small blind: ${currentRound.smallBlind}. ` +
                           `  Big blind: ${currentRound.bigBlind}. ` +
                           (currentRound.ante > 0 ? `Antey: ${currentRound.ante}. ` : '') +
                          
@@ -190,20 +195,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function setRandomHeaderColor() {
         const header = document.getElementById('stickyHeader');
         const colors = [
-            '#1a472a', // Dark green
+
             '#2c3e50', // Navy
             '#27ae60', // Emerald
             '#e74c3c', // Red
             '#3498db', // Blue
             '#9b59b6', // Purple
             '#16a085',  // Teal
-            '#e67e22', // Carrot
             '#f1c40f', // Sunflower
-            '#8e44ad', // Wisteria
-            '#2980b9', // Peter River
-            '#d35400', // Pumpkin
-            '#2ecc71', // Nephritis
-            '#e74c3c', // Pomegranate
             '#f39c12', // Orange
 
         ];
@@ -928,6 +927,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update time display
         timeEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        //set the document title to the current time left
+        document.title = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
         // Handle critical time (last minute)
         if(tournament.timeRemaining === 60) {
