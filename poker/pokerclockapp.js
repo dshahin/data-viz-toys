@@ -105,6 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function init() {
         loadFromLocalStorage();
+        setupSpeech();
         renderRoundsTable();
         updateClockDisplay();
         setupEventListeners();
@@ -112,17 +113,12 @@ document.addEventListener('DOMContentLoaded', function() {
         setupPageVisibilityHandler(); // Add this line
         setupSoundControls();
         setupMobileSoundUnlock();
-        // setupRandomColorButton();
         loadHeaderColor();
         playVictoryFanfare();
-        setupSpeech();
-        //set page background color
-        // document.body.style.backgroundColor = generateContrastingColor('#27ae60');
-        // generateContrastingColor();
-        // TextToSpeech.speak("Hello world!");
+    
 
     // Clear any running state that might be left over
-    localStorage.removeItem('pokerTournamentClockRunning');
+        localStorage.removeItem('pokerTournamentClockRunning');
     
     }
 
@@ -131,7 +127,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!window.speechSynthesis || !soundEnabled) return;
         
         const currentRound = tournament.rounds[tournament.currentRoundIndex];
-        const minutes = Math.floor(tournament.timeRemaining / 60);
+        const minutes = Math.floor(tournament.timeRemaining / 60); 
+        const seconds = tournament.timeRemaining % 60;
         
         // Create the announcement text
         let announcement;
@@ -144,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           `  Big blind: ${currentRound.bigBlind}. ` +
                           (currentRound.ante > 0 ? `Antey: ${currentRound.ante}. ` : '') +
                          
-                          `${minutes} minute${minutes !== 1 ? 's' : ''} remaining.` +
+                          `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} second${seconds !== 1 ? 's' : ''} remaining.` +
                           ` Good luck! Shuffle up and deal!`;
         }
         
@@ -163,29 +160,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setRandomHeaderColor() {
         const header = document.getElementById('stickyHeader');
-        const colors = [
-
-            '#2c3e50', // Navy
-            '#27ae60', // Emerald
-            '#e74c3c', // Red
-            '#3498db', // Blue
-            '#9b59b6', // Purple
-            '#16a085',  // Teal
-            '#f1c40f', // Sunflower
-            '#f39c12', // Orange
-
-        ];
         
         // Get current color
         const currentColor = header.style.backgroundColor || 
                             getComputedStyle(header).backgroundColor;
-        
-        
-        let newColor;
-        do {
-            newColor = colors[Math.floor(Math.random() * colors.length)];
-        } while (newColor === currentColor);
-        
+        // Generate a contrasting color
+        let newColor = generateContrastingColor(currentColor);
         // Animate the transition
         header.style.transition = 'background-color 0.5s ease';
         header.style.backgroundColor = newColor;
@@ -199,6 +179,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const savedColor = localStorage.getItem('headerColor');
         if (savedColor) {
             document.getElementById('stickyHeader').style.backgroundColor = savedColor;
+        }else{
+            document.getElementById('stickyHeader').style.backgroundColor = generateContrastingColor(null);
         }
     }
 

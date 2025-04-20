@@ -28,13 +28,21 @@ function generateRandomBackgroundColor() {
 }
 
 function generateDifferentHueColor(inputHue) {
-    const minHueDifference = 60;
+
+    // make sure it is between 90 and 270
+    const minHueDifference = 90;
+    const maxHueDifference = 250;
     let newHue;
-    
     do {
         newHue = Math.floor(Math.random() * 360);
     } while (Math.abs(newHue - inputHue) < minHueDifference && 
-             Math.abs(newHue - inputHue) < (360 - minHueDifference));
+             Math.abs(newHue - inputHue) > maxHueDifference);
+    
+    
+    // do {
+    //     newHue = Math.floor(Math.random() * 360);
+    // } while (Math.abs(newHue - inputHue) < minHueDifference && 
+    //          Math.abs(newHue - inputHue) < (360 - minHueDifference));
     
     const s = 50 + Math.floor(Math.random() * 50);
     const l = 20 + Math.floor(Math.random() * 30);
