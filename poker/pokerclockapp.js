@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
         //set page background color
         // document.body.style.backgroundColor = generateContrastingColor('#27ae60');
         // generateContrastingColor();
+        // TextToSpeech.speak("Hello world!");
 
     // Clear any running state that might be left over
     localStorage.removeItem('pokerTournamentClockRunning');
@@ -147,39 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           ` Good luck! Shuffle up and deal!`;
         }
         
-        // Cancel any previous speech
-        speechSynthesis.cancel();
-        
-        // Create and configure the utterance
-        const utterance = new SpeechSynthesisUtterance(announcement);
-        utterance.volume = 1; // 0-1 scale
-        utterance.rate = 0.9; // Slightly slower than normal
-        utterance.pitch = 1; // Normal pitch
-        
-        // Select a pleasant voice if available
-        const voices = speechSynthesis.getVoices();
-        const preferredVoices = [
-            'Google UK English Male',
-            'Microsoft David - English (United States)',
-            'Alex', // macOS
-            'Google UK English Female'
-        ];
-        
-        for (const voiceName of preferredVoices) {
-            const voice = voices.find(v => v.name === voiceName);
-            if (voice) {
-                utterance.voice = voice;
-                break;
-            }
-        }
-        
-        // Speak the announcement
-        speechSynthesis.speak(utterance);
-        
-        // Handle errors gracefully
-        utterance.onerror = (event) => {
-            console.log('Speech error:', event.error);
-        };
+        TextToSpeech.speak(announcement);
     }
     
     function setupSpeech() {
