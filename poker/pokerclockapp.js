@@ -903,9 +903,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if(tournament.timeRemaining === 60) {
             playMelodiousAlert();
             timeEl.classList.add('one-minute');
+            TextToSpeech.speak('one minute remaining');
         }
         if(tournament.timeRemaining === 30) {
             playMelodiousAlert();
+            TextToSpeech.speak('Thirty seconds');
         }
         if (tournament.timeRemaining <= 60 && tournament.timeRemaining > 10) {
             timeEl.classList.add('one-minute');
@@ -917,8 +919,9 @@ document.addEventListener('DOMContentLoaded', function() {
             timeEl.classList.add('time-critical');
             
             // Play warning beep every second if sound is enabled
-            if (soundEnabled && tournament.isRunning && seconds % 2 === 0) {
+            if (soundEnabled && tournament.isRunning ) {
                 playWarningSound();
+                TextToSpeech.speak(`${seconds}`);
             }
         } else {
             timeEl.classList.remove('time-critical');
