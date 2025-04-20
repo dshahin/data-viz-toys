@@ -109,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderRoundsTable();
         updateClockDisplay();
         setupEventListeners();
-        checkHeaderOnLoad();
         setupPageVisibilityHandler(); // Add this line
         setupSoundControls();
         setupMobileSoundUnlock();
@@ -141,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           `  Big blind: ${currentRound.bigBlind}. ` +
                           (currentRound.ante > 0 ? `Antey: ${currentRound.ante}. ` : '') +
                          
-                          `${minutes} minute${minutes !== 1 ? 's' : ''} ${seconds} second${seconds !== 1 ? 's' : ''} remaining.` +
+                          `${minutes} minute${minutes !== 1 ? 's' : ''} remaining.` +
                           ` Good luck! Shuffle up and deal!`;
         }
         
@@ -191,16 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         document.addEventListener('click', unlockAudio, { once: true });
         document.addEventListener('touchstart', unlockAudio, { once: true });
-    }
-    
-
-    function checkHeaderOnLoad() {
-        const header = document.getElementById('stickyHeader');
-        if (window.scrollY <= 10) {
-            header.classList.remove('collapsed');
-        } else {
-            header.classList.add('collapsed');
-        }
     }
 
     function addMinute() {
