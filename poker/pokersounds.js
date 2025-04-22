@@ -42,6 +42,7 @@ function playWarningSound() {
 }
 
 function playTestSound() {
+    if (!soundEnabled) return;
     // Brief beep to confirm sound is working
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
