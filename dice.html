@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Roller</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        .dice-pool {
+            margin-top: 15px;
+        }
+        .dice-entry {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .dice-entry select, .dice-entry input {
+            margin: 0 5px;
+            padding: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #addDice {
+            background-color: #2196F3;
+        }
+        #addDice:hover {
+            background-color: #0b7dda;
+        }
+        #removeDice {
+            background-color: #f44336;
+        }
+        #removeDice:hover {
+            background-color: #da190b;
+        }
+        #diceNotation {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9f7ef;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .dice-roll {
+            display: inline-block;
+            margin: 2px;
+            padding: 2px 5px;
+            background: #d4edda;
+            border-radius: 3px;
+        }
+        .total {
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Polyhedral Dice Roller</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Dice Pool Builder</h2>
+            <div>
+                <button id="addDice">Add Dice</button>
+                <button id="removeDice">Remove Last Dice</button>
+            </div>
+            <div class="dice-pool" id="dicePool">
+                <!-- Dice entries will be added here -->
+            </div>
+            <div>
+                <label for="modifier">Modifier:</label>
+                <input type="number" id="modifier" value="0" min="-99" max="99">
+            </div>
+            <div>
+                <label for="builtNotation">Dice Notation:</label>
+                <input type="text" id="builtNotation" readonly>
+            </div>
+            <button id="rollPool">Roll Dice Pool</button>
+        </div>
+        
+        <div class="panel">
+            <h2>Direct Dice Notation</h2>
+            <p>Enter dice notation (e.g., "2d6+1", "d20-2", "4d10"):</p>
+            <input type="text" id="diceNotation" placeholder="e.g. 2d6+1">
+            <button id="rollNotation">Roll Notation</button>
+            
+            <div class="results" id="results">
+                Results will appear here...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const dicePool = document.getElementById('dicePool');
+            const addDiceBtn = document.getElementById('addDice');
+            const removeDiceBtn = document.getElementById('removeDice');
+            const modifierInput = document.getElementById('modifier');
+            const builtNotation = document.getElementById('builtNotation');
+            const rollPoolBtn = document.getElementById('rollPool');
+            const diceNotationInput = document.getElementById('diceNotation');
+            const rollNotationBtn = document.getElementById('rollNotation');
+            const resultsDiv = document.getElementById('results');
+            
+            // Dice types
+            const diceTypes = [
+                {value: 4, text: 'd4'},
+                {value: 6, text: 'd6'},
+                {value: 8, text: 'd8'},
+                {value: 10, text: 'd10'},
+                {value: 12, text: 'd12'},
+                {value: 20, text: 'd20'},
+                {value: 100, text: 'd100'}
+            ];
+            
+            // Add a new dice entry to the pool
+            function addDiceEntry(count = 1, sides = 6) {
+                const entry = document.createElement('div');
+                entry.className = 'dice-entry';
+                
+                const countInput = document.createElement('input');
+                countInput.type = 'number';
+                countInput.value = count;
+                countInput.min = 1;
+                countInput.max = 99;
+                countInput.className = 'dice-count';
+                
+                const label = document.createElement('span');
+                label.textContent = 'd';
+                
+                const sidesSelect = document.createElement('select');
+                sidesSelect.className = 'dice-sides';
+                diceTypes.forEach(dice => {
+                    const option = document.createElement('option');
+                    option.value = dice.value;
+                    option.textContent = dice.text;
+                    if (dice.value === sides) option.selected = true;
+                    sidesSelect.appendChild(option);
+                });
+                
+                entry.appendChild(countInput);
+                entry.appendChild(label);
+                entry.appendChild(sidesSelect);
+                
+                dicePool.appendChild(entry);
+                updateBuiltNotation();
+            }
+            
+            // Remove the last dice entry
+            function removeLastDiceEntry() {
+                const entries = dicePool.querySelectorAll('.dice-entry');
+                if (entries.length > 0) {
+                    dicePool.removeChild(entries[entries.length - 1]);
+                    updateBuiltNotation();
+                }
+            }
+            
+            // Update the built notation display
+            function updateBuiltNotation() {
+                const entries = dicePool.querySelectorAll('.dice-entry');
+                let notation = '';
+                let totalDice = 0;
+                let currentSides = 0;
+                
+                // Group same-sided dice
+                const diceGroups = {};
+                entries.forEach(entry => {
+                    const count = parseInt(entry.querySelector('.dice-count').value);
+                    const sides = parseInt(entry.querySelector('.dice-sides').value);
+                    
+                    if (diceGroups[sides]) {
+                        diceGroups[sides] += count;
+                    } else {
+                        diceGroups[sides] = count;
+                    }
+                });
+                
+                // Build notation string
+                for (const [sides, count] of Object.entries(diceGroups)) {
+                    if (notation) notation += ' + ';
+                    notation += `${count}d${sides}`;
+                }
+                
+                // Add modifier if not zero
+                const modifier = parseInt(modifierInput.value);
+                if (modifier !== 0) {
+                    if (notation) {
+                        notation += modifier > 0 ? ' + ' : ' - ';
+                        notation += Math.abs(modifier);
+                    } else {
+                        notation = modifier.toString();
+                    }
+                }
+                
+                builtNotation.value = notation || '0';
+            }
+            
+            // Roll dice based on notation
+            function rollDiceNotation(notation) {
+                // Parse the notation
+                const parsed = parseDiceNotation(notation);
+                if (!parsed) {
+                    resultsDiv.textContent = 'Invalid dice notation. Examples: "2d6+1", "d20-2", "4d10"';
+                    return;
+                }
+                
+                // Roll the dice
+                const rolls = [];
+                let total = 0;
+                
+                parsed.dice.forEach(dice => {
+                    for (let i = 0; i < dice.count; i++) {
+                        const roll = Math.floor(Math.random() * dice.sides) + 1;
+                        rolls.push({sides: dice.sides, value: roll});
+                        total += roll;
+                    }
+                });
+                
+                total += parsed.modifier;
+                
+                // Display results
+                let resultHTML = '';
+                
+                if (rolls.length > 0) {
+                    resultHTML += '<div>Rolls: ';
+                    rolls.forEach(roll => {
+                        resultHTML += `<span class="dice-roll" title="d${roll.sides}">${roll.value}</span>`;
+                    });
+                    resultHTML += '</div>';
+                }
+                
+                if (parsed.modifier !== 0) {
+                    resultHTML += `<div>Modifier: ${parsed.modifier > 0 ? '+' : ''}${parsed.modifier}</div>`;
+                }
+                
+                resultHTML += `<div class="total">Total: ${total}</div>`;
+                
+                resultsDiv.innerHTML = resultHTML;
+            }
+            
+            // Parse dice notation (e.g., "2d6+1", "d20-2", "4d10")
+            function parseDiceNotation(notation) {
+                if (!notation) return null;
+                
+                // Normalize the notation
+                notation = notation.toLowerCase().replace(/\s+/g, '');
+                
+                // Check for simple modifier (e.g., "+3", "-2")
+                if (/^[+-]?\d+$/.test(notation)) {
+                    return {
+                        dice: [],
+                        modifier: parseInt(notation)
+                    };
+                }
+                
+                // Parse dice and modifier
+                const diceRegex = /(\d*)d(\d+)/g;
+                const modifierRegex = /([+-]\d+)$/;
+                
+                const dice = [];
+                let modifier = 0;
+                let match;
+                
+                // Extract dice
+                while ((match = diceRegex.exec(notation)) !== null) {
+                    const count = match[1] ? parseInt(match[1]) : 1;
+                    const sides = parseInt(match[2]);
+                    
+                    if (count < 1 || sides < 1) return null;
+                    
+                    dice.push({count, sides});
+                }
+                
+                // Extract modifier
+                const modifierMatch = notation.match(modifierRegex);
+                if (modifierMatch) {
+                    modifier = parseInt(modifierMatch[0]);
+                }
+                
+                // Validate that we parsed something
+                if (dice.length === 0 && modifier === 0) return null;
+                
+                return {dice, modifier};
+            }
+            
+            // Event listeners
+            addDiceBtn.addEventListener('click', () => addDiceEntry());
+            removeDiceBtn.addEventListener('click', removeLastDiceEntry);
+            
+            dicePool.addEventListener('input', (e) => {
+                if (e.target.classList.contains('dice-count') || e.target.classList.contains('dice-sides')) {
+                    updateBuiltNotation();
+                }
+            });
+            
+            modifierInput.addEventListener('input', updateBuiltNotation);
+            
+            rollPoolBtn.addEventListener('click', () => {
+                rollDiceNotation(builtNotation.value);
+            });
+            
+            rollNotationBtn.addEventListener('click', () => {
+                rollDiceNotation(diceNotationInput.value);
+            });
+            
+            diceNotationInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    rollDiceNotation(diceNotationInput.value);
+                }
+            });
+            
+            // Initialize with one d6
+            addDiceEntry(1, 6);
+        });
+    </script>
+</body>
+</html>

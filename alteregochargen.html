@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom RPG Character Generator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .options-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .option {
+            background-color: #ecf0f1;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .option:hover {
+            background-color: #d6eaf8;
+        }
+        .option.selected {
+            background-color: #3498db;
+            color: white;
+        }
+        .character-sheet {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .character-sheet h2 {
+            color: #ecf0f1;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        .character-attribute {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #34495e;
+        }
+        .roll-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .roll-btn:hover {
+            background-color: #c0392b;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 100;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .success {
+            color: #2ecc71;
+        }
+        .failure {
+            color: #e74c3c;
+        }
+        .critical {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .dice-value {
+            font-weight: bold;
+            color: #f39c12;
+        }
+        .name-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .character-management {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .printable-sheet {
+            background-color: white;
+            color: black;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .printable-sheet h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #2c3e50;
+        }
+        .printable-attribute {
+            margin-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-box {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .stat-box h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        .saved-characters {
+            margin-top: 20px;
+        }
+        .character-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .character-card:hover {
+            background-color: #f0f7fc;
+        }
+        .character-card h3 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        .character-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .character-actions button {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .printable-sheet, .printable-sheet * {
+                visibility: visible;
+            }
+            .printable-sheet {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Custom RPG Character Generator</h1>
+    
+    <div class="section">
+        <h2>Character Basics</h2>
+        <input type="text" id="character-name" class="name-input" placeholder="Enter character name">
+    </div>
+    
+    <div class="section">
+        <h2>Select 2 Traits</h2>
+        <button id="roll-traits">Roll Random Traits</button>
+        <div class="options-container" id="traits-container">
+            <!-- Traits will be populated by JavaScript -->
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Select 2 Superpowers</h2>
+        <button id="roll-powers">Roll Random Powers</button>
+        <div class="options-container" id="powers-container">
+            <!-- Powers will be populated by JavaScript -->
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Select 1 Weakness</h2>
+        <button id="roll-weakness">Roll Random Weakness</button>
+        <div class="options-container" id="weakness-container">
+            <!-- Weaknesses will be populated by JavaScript -->
+        </div>
+    </div>
+    
+    <div class="character-sheet" id="character-sheet" style="display: none;">
+        <h2>Your Character</h2>
+        <div id="character-attributes">
+            <!-- Character attributes will be populated by JavaScript -->
+        </div>
+        
+        <div class="character-management">
+            <button id="save-character">Save Character</button>
+            <button id="print-character">Print Character Sheet</button>
+        </div>
+    </div>
+    
+    <div class="section saved-characters" id="saved-characters" style="display: none;">
+        <h2>Saved Characters</h2>
+        <div id="characters-list">
+            <!-- Saved characters will be populated here -->
+        </div>
+    </div>
+    
+    <div class="printable-sheet" id="printable-sheet">
+        <h2 id="printable-name">Character Name</h2>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <h3>Traits</h3>
+                <div id="printable-traits"></div>
+            </div>
+            <div class="stat-box">
+                <h3>Powers</h3>
+                <div id="printable-powers"></div>
+            </div>
+            <div class="stat-box">
+                <h3>Weakness</h3>
+                <div id="printable-weakness"></div>
+            </div>
+            <div class="stat-box">
+                <h3>Karma Points</h3>
+                <input type="number" id="printable-karma" style="width: 100%; padding: 5px;">
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>Equipment</h3>
+            <textarea id="printable-equipment"></textarea>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <h3>Notes</h3>
+            <textarea id="printable-notes"></textarea>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // Data
+        const traits = [
+            "Quick Thinker", "Empath", "Athletic", "Persuasive", "Stealthy",
+            "Mechanic", "Artist", "Brave", "Historian", "Animal Friend",
+            "Lucky", "Leader", "Comedian", "Survivalist", "Detective",
+            "Acrobat", "Inventor", "Medic", "Storyteller", "Scientist"
+        ];
+        
+        const powers = [
+            "Super Speed", "Invisibility", "Teleportation", "Elemental Control", "Telekinesis",
+            "Shapeshifting", "Force Fields", "Healing Touch", "Super Strength", "Flight",
+            "Illusions", "Time Slow", "Plant Control", "X-Ray Vision", "Energy Blasts",
+            "Elasticity", "Size Change", "Super Senses", "Weather Control", "Duplication"
+        ];
+        
+        const weaknesses = [
+            "Allergic to Metal", "Fear of Heights", "Glows in the Dark", "Overconfident", "Forgetful",
+            "Hated by Tech", "Loud Voice", "Sweet Tooth", "Truth Compulsion", "Sleepy",
+            "Gullible", "Clumsy", "Fear of Crowds", "Allergic to Water", "Overly Honest",
+            "Bad Luck", "Glitter Trail", "Can't Swim", "Terrible Liar", "Secret Identity"
+        ];
+        
+        const dice = ["d6", "d8", "d10", "d12"];
+        
+        // DOM Elements
+        const traitsContainer = document.getElementById('traits-container');
+        const powersContainer = document.getElementById('powers-container');
+        const weaknessContainer = document.getElementById('weakness-container');
+        const characterSheet = document.getElementById('character-sheet');
+        const characterAttributes = document.getElementById('character-attributes');
+        const toast = document.getElementById('toast');
+        const characterNameInput = document.getElementById('character-name');
+        const saveCharacterBtn = document.getElementById('save-character');
+        const printCharacterBtn = document.getElementById('print-character');
+        const savedCharactersSection = document.getElementById('saved-characters');
+        const charactersList = document.getElementById('characters-list');
+        const printableSheet = document.getElementById('printable-sheet');
+        const printableName = document.getElementById('printable-name');
+        const printableTraits = document.getElementById('printable-traits');
+        const printablePowers = document.getElementById('printable-powers');
+        const printableWeakness = document.getElementById('printable-weakness');
+        const printableKarma = document.getElementById('printable-karma');
+        const printableEquipment = document.getElementById('printable-equipment');
+        const printableNotes = document.getElementById('printable-notes');
+        
+        // State
+        let selectedTraits = [];
+        let selectedPowers = [];
+        let selectedWeakness = null;
+        let assignedDice = {};
+        let savedCharacters = [];
+        
+        // Initialize options
+        function initializeOptions() {
+            // Traits
+            traitsContainer.innerHTML = '';
+            traits.forEach(trait => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.textContent = trait;
+                div.addEventListener('click', () => toggleSelection(trait, 'trait'));
+                traitsContainer.appendChild(div);
+            });
+            
+            // Powers
+            powersContainer.innerHTML = '';
+            powers.forEach(power => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.textContent = power;
+                div.addEventListener('click', () => toggleSelection(power, 'power'));
+                powersContainer.appendChild(div);
+            });
+            
+            // Weaknesses
+            weaknessContainer.innerHTML = '';
+            weaknesses.forEach(weakness => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.textContent = weakness;
+                div.addEventListener('click', () => toggleSelection(weakness, 'weakness'));
+                weaknessContainer.appendChild(div);
+            });
+            
+            // Load saved characters
+            loadSavedCharacters();
+        }
+        
+        // Toggle selection
+        function toggleSelection(item, type) {
+            if (type === 'trait') {
+                const index = selectedTraits.indexOf(item);
+                if (index === -1) {
+                    if (selectedTraits.length < 2) {
+                        selectedTraits.push(item);
+                    } else {
+                        showToast("You can only select 2 traits");
+                        return;
+                    }
+                } else {
+                    selectedTraits.splice(index, 1);
+                }
+                updateOptionSelection(traitsContainer, selectedTraits);
+            } 
+            else if (type === 'power') {
+                const index = selectedPowers.indexOf(item);
+                if (index === -1) {
+                    if (selectedPowers.length < 2) {
+                        selectedPowers.push(item);
+                    } else {
+                        showToast("You can only select 2 powers");
+                        return;
+                    }
+                } else {
+                    selectedPowers.splice(index, 1);
+                }
+                updateOptionSelection(powersContainer, selectedPowers);
+            } 
+            else if (type === 'weakness') {
+                if (selectedWeakness === item) {
+                    selectedWeakness = null;
+                } else {
+                    if (selectedWeakness) {
+                        showToast("You can only select 1 weakness");
+                        return;
+                    }
+                    selectedWeakness = item;
+                }
+                updateOptionSelection(weaknessContainer, selectedWeakness ? [selectedWeakness] : []);
+            }
+            
+            checkCharacterComplete();
+        }
+        
+        // Update option selection UI
+        function updateOptionSelection(container, selectedItems) {
+            const options = container.querySelectorAll('.option');
+            options.forEach(option => {
+                if (selectedItems.includes(option.textContent)) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+        
+        // Check if character is complete
+        function checkCharacterComplete() {
+            if (selectedTraits.length === 2 && selectedPowers.length === 2 && selectedWeakness && characterNameInput.value.trim()) {
+                generateCharacterSheet();
+                characterSheet.style.display = 'block';
+            } else {
+                characterSheet.style.display = 'none';
+            }
+        }
+        
+        // Generate character sheet
+        function generateCharacterSheet() {
+            // Assign dice values randomly (except weakness which is always d4)
+            const availableDice = [...dice];
+            assignedDice = {};
+            
+            // Assign dice to traits and powers
+            [...selectedTraits, ...selectedPowers].forEach(item => {
+                const randomIndex = Math.floor(Math.random() * availableDice.length);
+                assignedDice[item] = availableDice[randomIndex];
+                availableDice.splice(randomIndex, 1);
+            });
+            
+            // Weakness is always d4
+            assignedDice[selectedWeakness] = 'd4';
+            
+            // Display character sheet
+            characterAttributes.innerHTML = '';
+            
+            // Add traits
+            selectedTraits.forEach(trait => {
+                addCharacterAttribute(trait, assignedDice[trait]);
+            });
+            
+            // Add powers
+            selectedPowers.forEach(power => {
+                addCharacterAttribute(power, assignedDice[power]);
+            });
+            
+            // Add weakness
+            addCharacterAttribute(selectedWeakness, assignedDice[selectedWeakness], true);
+            
+            // Update printable sheet
+            updatePrintableSheet();
+        }
+        
+        // Add character attribute to sheet
+        function addCharacterAttribute(name, die, isWeakness = false) {
+            const div = document.createElement('div');
+            div.className = 'character-attribute';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = name;
+            
+            const dieSpan = document.createElement('span');
+            dieSpan.className = 'dice-value';
+            dieSpan.textContent = die;
+            
+            const rollBtn = document.createElement('button');
+            rollBtn.className = 'roll-btn';
+            rollBtn.textContent = 'Roll';
+            rollBtn.addEventListener('click', () => rollAttribute(name, die, isWeakness));
+            
+            div.appendChild(nameSpan);
+            div.appendChild(dieSpan);
+            div.appendChild(rollBtn);
+            
+            characterAttributes.appendChild(div);
+        }
+        
+        // Roll attribute
+        function rollAttribute(name, die, isWeakness) {
+            let max, result;
+            
+            switch (die) {
+                case 'd4':
+                    max = 4;
+                    break;
+                case 'd6':
+                    max = 6;
+                    break;
+                case 'd8':
+                    max = 8;
+                    break;
+                case 'd10':
+                    max = 10;
+                    break;
+                case 'd12':
+                    max = 12;
+                    break;
+                default:
+                    max = 6;
+            }
+            
+            result = Math.floor(Math.random() * max) + 1;
+            
+            let message = `Rolled ${result} on ${die} for ${name}: `;
+            let isSuccess = result > 2;
+            let isCritical = false;
+            
+            if (result === 1) {
+                message += "CRITICAL FAILURE! ";
+                isCritical = true;
+            } else if (result === max) {
+                message += "CRITICAL SUCCESS! ";
+                isCritical = true;
+            } else if (!isSuccess) {
+                message += "Failure. ";
+            } else {
+                message += "Success! ";
+            }
+            
+            // Special messages for weaknesses (reverse logic)
+            if (isWeakness) {
+                isSuccess = !isSuccess;
+                if (result === 1) {
+                    message += "Your weakness has no effect this time!";
+                } else if (result === max) {
+                    message += "Your weakness causes major problems!";
+                }
+            }
+            
+            showToast(message, isSuccess, isCritical);
+        }
+        
+        // Show toast message
+        function showToast(message, isSuccess = false, isCritical = false) {
+            toast.textContent = message;
+            toast.className = 'toast';
+            
+            if (isCritical) {
+                toast.classList.add('critical');
+            }
+            toast.classList.add(isSuccess ? 'success' : 'failure');
+            
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Update printable sheet
+        function updatePrintableSheet() {
+            printableName.textContent = characterNameInput.value.trim() || "Unnamed Character";
+            
+            // Traits
+            printableTraits.innerHTML = '';
+            selectedTraits.forEach(trait => {
+                const div = document.createElement('div');
+                div.className = 'printable-attribute';
+                div.innerHTML = `<strong>${trait}</strong>: ${assignedDice[trait]}`;
+                printableTraits.appendChild(div);
+            });
+            
+            // Powers
+            printablePowers.innerHTML = '';
+            selectedPowers.forEach(power => {
+                const div = document.createElement('div');
+                div.className = 'printable-attribute';
+                div.innerHTML = `<strong>${power}</strong>: ${assignedDice[power]}`;
+                printablePowers.appendChild(div);
+            });
+            
+            // Weakness
+            printableWeakness.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'printable-attribute';
+            div.innerHTML = `<strong>${selectedWeakness}</strong>: ${assignedDice[selectedWeakness]}`;
+            printableWeakness.appendChild(div);
+        }
+        
+        // Save character
+        function saveCharacter() {
+            const characterName = characterNameInput.value.trim();
+            if (!characterName) {
+                showToast("Please enter a character name", false);
+                return;
+            }
+            
+            const characterData = {
+                name: characterName,
+                traits: selectedTraits,
+                powers: selectedPowers,
+                weakness: selectedWeakness,
+                dice: assignedDice,
+                karma: printableKarma.value,
+                equipment: printableEquipment.value,
+                notes: printableNotes.value,
+                timestamp: new Date().getTime()
+            };
+            
+            // Load existing characters
+            const savedChars = JSON.parse(localStorage.getItem('rpgCharacters') || '[]');
+            
+            // Check if this character already exists
+            const existingIndex = savedChars.findIndex(c => c.name === characterName);
+            if (existingIndex >= 0) {
+                savedChars[existingIndex] = characterData;
+            } else {
+                savedChars.push(characterData);
+            }
+            
+            // Save back to localStorage
+            localStorage.setItem('rpgCharacters', JSON.stringify(savedChars));
+            showToast(`Character "${characterName}" saved!`, true);
+            
+            // Refresh saved characters list
+            loadSavedCharacters();
+        }
+        
+        // Load saved characters
+        function loadSavedCharacters() {
+            const savedChars = JSON.parse(localStorage.getItem('rpgCharacters') || '[]');
+            savedCharacters = savedChars;
+            
+            if (savedChars.length > 0) {
+                savedCharactersSection.style.display = 'block';
+                charactersList.innerHTML = '';
+                
+                savedChars.sort((a, b) => a.name.localeCompare(b.name)).forEach(char => {
+                    const card = document.createElement('div');
+                    card.className = 'character-card';
+                    
+                    const name = document.createElement('h3');
+                    name.textContent = char.name;
+                    
+                    const traits = document.createElement('p');
+                    traits.textContent = `Traits: ${char.traits.join(', ')}`;
+                    
+                    const powers = document.createElement('p');
+                    powers.textContent = `Powers: ${char.powers.join(', ')}`;
+                    
+                    const weakness = document.createElement('p');
+                    weakness.textContent = `Weakness: ${char.weakness}`;
+                    
+                    const actions = document.createElement('div');
+                    actions.className = 'character-actions';
+                    
+                    const loadBtn = document.createElement('button');
+                    loadBtn.textContent = 'Load';
+                    loadBtn.addEventListener('click', () => loadCharacter(char));
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.style.backgroundColor = '#e74c3c';
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteCharacter(char.name);
+                    });
+                    
+                    actions.appendChild(loadBtn);
+                    actions.appendChild(deleteBtn);
+                    
+                    card.appendChild(name);
+                    card.appendChild(traits);
+                    card.appendChild(powers);
+                    card.appendChild(weakness);
+                    card.appendChild(actions);
+                    
+                    charactersList.appendChild(card);
+                });
+            } else {
+                savedCharactersSection.style.display = 'none';
+            }
+        }
+        
+        // Load character
+        function loadCharacter(char) {
+            // Clear current selections
+            selectedTraits = [];
+            selectedPowers = [];
+            selectedWeakness = null;
+            
+            // Update name
+            characterNameInput.value = char.name;
+            
+            // Update selections
+            char.traits.forEach(trait => {
+                selectedTraits.push(trait);
+                updateOptionSelection(traitsContainer, selectedTraits);
+            });
+            
+            char.powers.forEach(power => {
+                selectedPowers.push(power);
+                updateOptionSelection(powersContainer, selectedPowers);
+            });
+            
+            selectedWeakness = char.weakness;
+            updateOptionSelection(weaknessContainer, [selectedWeakness]);
+            
+            // Assign dice
+            assignedDice = char.dice;
+            
+            // Generate character sheet
+            generateCharacterSheet();
+            characterSheet.style.display = 'block';
+            
+            // Load additional data
+            if (char.karma) printableKarma.value = char.karma;
+            if (char.equipment) printableEquipment.value = char.equipment;
+            if (char.notes) printableNotes.value = char.notes;
+            
+            showToast(`Character "${char.name}" loaded!`, true);
+        }
+        
+        // Delete character
+        function deleteCharacter(name) {
+            if (confirm(`Are you sure you want to delete "${name}"?`)) {
+                const savedChars = JSON.parse(localStorage.getItem('rpgCharacters') || '[]');
+                const updatedChars = savedChars.filter(c => c.name !== name);
+                localStorage.setItem('rpgCharacters', JSON.stringify(updatedChars));
+                showToast(`Character "${name}" deleted`, true);
+                loadSavedCharacters();
+            }
+        }
+        
+        // Print character sheet
+        function printCharacterSheet() {
+            updatePrintableSheet();
+            printableSheet.style.display = 'block';
+            window.print();
+            printableSheet.style.display = 'none';
+        }
+        
+        // Event listeners
+        characterNameInput.addEventListener('input', checkCharacterComplete);
+        saveCharacterBtn.addEventListener('click', saveCharacter);
+        printCharacterBtn.addEventListener('click', printCharacterSheet);
+        
+        // Roll random traits
+        document.getElementById('roll-traits').addEventListener('click', () => {
+            selectedTraits = [];
+            while (selectedTraits.length < 2) {
+                const randomTrait = traits[Math.floor(Math.random() * traits.length)];
+                if (!selectedTraits.includes(randomTrait)) {
+                    selectedTraits.push(randomTrait);
+                }
+            }
+            updateOptionSelection(traitsContainer, selectedTraits);
+            checkCharacterComplete();
+        });
+        
+        // Roll random powers
+        document.getElementById('roll-powers').addEventListener('click', () => {
+            selectedPowers = [];
+            while (selectedPowers.length < 2) {
+                const randomPower = powers[Math.floor(Math.random() * powers.length)];
+                if (!selectedPowers.includes(randomPower)) {
+                    selectedPowers.push(randomPower);
+                }
+            }
+            updateOptionSelection(powersContainer, selectedPowers);
+            checkCharacterComplete();
+        });
+        
+        // Roll random weakness
+        document.getElementById('roll-weakness').addEventListener('click', () => {
+            selectedWeakness = weaknesses[Math.floor(Math.random() * weaknesses.length)];
+            updateOptionSelection(weaknessContainer, [selectedWeakness]);
+            checkCharacterComplete();
+        });
+        
+        // Initialize
+        initializeOptions();
+    </script>
+</body>
+</html>
