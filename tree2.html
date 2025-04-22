@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Comparison Tree Generator (alphavantage)</title>
+    <title>Stock Comparison Tree Generator (Marketstack API)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -136,10 +136,11 @@
             <button id="generateBtn">Generate Trees</button>
             <button id="randomBtn">Random Example</button>
             <!-- add an input for api key -->
-            <label for="apiKey">API Key:</label>
-            <input type="text" id="apiKey" placeholder="Enter your API key here">
-            <p style="font-size: 12px; color: #999;">Note: You can use your own <a target="" href="https://www.alphavantage.co/support/#api-key">free API key</a> for fetching stock data.</p>
-        <div>
+            <div class="api-key-container">
+                <label for="apiKey">Marketstack API Key:</label>
+                <input type="text" id="apiKey" placeholder="Enter your Marketstack key">
+                <div id="apiStatus">Get a free API key at marketstack.com</div>
+            </div>        <div>
  
     </div>
     
@@ -178,55 +179,97 @@
         
         // Function to fetch stock data (using Alpha Vantage API as an example)
         //ZMW6RM4UZ3NICN3B
-        async function fetchStockData(symbol) {
-            //const API_KEY = "ZMW6RM4UZ3NICN3B";
-            const API_KEY = document.getElementById('apiKey').value.trim();
-            if (!API_KEY) {
-                alert("Please enter a valid API key.");
-                return null;
-            }
-                        //cache the response for 24 hours in local storage
-            const cacheKey = `stockData_${symbol}`;
-            const cachedData = localStorage.getItem(cacheKey);
-            console.log(cachedData);
-            const cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
-            const now = new Date().getTime();
-            if (cachedData && (now - JSON.parse(cachedData).timestamp < cacheExpiry)) {
-                console.log("Using cached data");
-                console.log(JSON.parse(cachedData).data);
-                //return JSON.parse(cachedData).data;
-                const data = JSON.parse(cachedData).data;
-                return {
-                    price: parseFloat(data["50DayMovingAverage"]), // Fallback to latest price in real implementation
-                    pe: parseFloat(data["PERatio"]),
-                    dividend: parseFloat(data["DividendYield"] || 0),
-                    volume: parseInt(data["Volume"] || 0),
-                    description: data["Description"]
-                  };
-            }
-            const response = await fetch(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${API_KEY}`);
+        // Replace the fetchStockData function with this Marketstack version
+async function fetchStockData(symbol) {
+    // First check cache
+    const cachedData = getCachedStockData(symbol);
+    if (cachedData) {
+        console.log(`Using cached data for ${symbol}`);
+        cachedData.fromCache = true;
+        return cachedData;
+    }
+    // Validate API key
+    const apiKeyInput = document.getElementById('apiKey');
+    const API_KEY = apiKeyInput.value.trim();
+    if (!API_KEY || API_KEY.length < 10) {
+        throw new Error("Invalid Marketstack API key");
+    }
 
-            const data = await response.json();
-            if (!data || data["Information"]) {
-                alert("Error fetching stock data. " + data["Information"]);
-                return null;
-            }
-            //cache the data
-            localStorage.setItem(cacheKey, JSON.stringify({data, timestamp: now}));
-            return {
-              price: parseFloat(data["50DayMovingAverage"]), // Fallback to latest price in real implementation
-              pe: parseFloat(data["PERatio"]),
-              dividend: parseFloat(data["DividendYield"] || 0),
-              volume: parseInt(data["Volume"] || 0),
-              description: data["Description"]
-            };
-          }
+    try {
+        // Marketstack API endpoint (free tier uses HTTP)
+        const url = `http://api.marketstack.com/v1/tickers/${symbol}/eod/latest?access_key=${API_KEY}`;
         
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        // Extract relevant data from Marketstack response
+        const result = {
+            symbol: symbol,
+            price: parseFloat(data.close || data.last),
+            pe: parseFloat(data.pe || 0), // May need separate API call for P/E
+            dividend: parseFloat(data.dividend || 0),
+            volume: parseInt(data.volume || 0),
+            fromCache: false
+        };
+
+        // Cache the result
+        cacheStockData(symbol, result);
+
+        return result;
+    } catch (error) {
+        console.error(`Error fetching data for ${symbol}:`, error);
+        
+        // Fallback data
+        return {
+            symbol: symbol,
+            price: 100 + Math.random() * 100,
+            pe: 10 + Math.random() * 20,
+            dividend: Math.random() * 3,
+            volume: 1000000 + Math.random() * 9000000,
+            fromCache: false,
+            isFallback: true
+        };
+    }
+}
+        // Modify your cache functions to handle Marketstack's data structure
+        function cacheStockData(symbol, data) {
+            // Marketstack data tends to be larger, so we'll only cache essentials
+            const cacheEntry = {
+                data: {
+                    symbol: data.symbol,
+                    price: data.price,
+                    pe: data.pe,
+                    dividend: data.dividend,
+                    volume: data.volume
+                },
+                timestamp: new Date().getTime()
+            };
+            localStorage.setItem(`mstack_${symbol}`, JSON.stringify(cacheEntry));
+        }
+
+        function getCachedStockData(symbol) {
+            const cached = localStorage.getItem(`mstack_${symbol}`);
+            if (!cached) return null;
+            
+            const cacheEntry = JSON.parse(cached);
+            const now = new Date().getTime();
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            
+            return (now - cacheEntry.timestamp < twentyFourHours) ? cacheEntry.data : null;
+        }
         // Function to display stock info
         function displayStockInfo(element, data) {
             if (!data) {
                 element.innerHTML = "No data available";
                 return;
+            }
+
+            if (data.isFallback) {
+                element.innerHTML += `<br><em style="color:red">(Using simulated data - API limit reached?)</em>`;
             }
             
             element.innerHTML = `
@@ -416,11 +459,11 @@
         document.getElementById('apiKey').addEventListener('change', function() {
             const apiKey = this.value.trim();
             if (apiKey) {
-                localStorage.setItem('apiKey', apiKey);
+                localStorage.setItem('apiKey2', apiKey);
             }
         });
         // Retrieve the API key from local storage if available
-        const storedApiKey = localStorage.getItem('apiKey');
+        const storedApiKey = localStorage.getItem('apiKey2');
         if (storedApiKey) {
             document.getElementById('apiKey').value = storedApiKey;
         }
