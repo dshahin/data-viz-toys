@@ -202,6 +202,42 @@
             padding: 5px 10px;
             font-size: 14px;
         }
+        .dice-selector {
+            margin-left: 10px;
+            padding: 3px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+            background-color: #2c3e50;
+            color: white;
+        }
+        .karma-display {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .karma-value {
+            font-weight: bold;
+            font-size: 18px;
+            color: #f39c12;
+        }
+        .karma-btn {
+            padding: 5px 10px;
+            font-size: 14px;
+            margin: 0;
+        }
+        .karma-input {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+        }
+        .use-karma-checkbox {
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
         @media print {
             body * {
                 visibility: hidden;
@@ -255,7 +291,17 @@
     </div>
     
     <div class="character-sheet" id="character-sheet" style="display: none;">
-        <h2>Your Character</h2>
+        <h2 id="character-sheet-title">Your Character</h2>
+        
+        <div class="karma-display">
+            <span>Karma:</span>
+            <span class="karma-value" id="karma-value">0</span>
+            <button class="karma-btn" onclick="changeKarma(-1)">-</button>
+            <button class="karma-btn" onclick="changeKarma(1)">+</button>
+            <input type="number" id="karma-input" class="karma-input">
+            <button class="karma-btn" onclick="setKarma()">Set</button>
+        </div>
+        
         <div id="character-attributes">
             <!-- Character attributes will be populated by JavaScript -->
         </div>
@@ -331,7 +377,7 @@
             "Bad Luck", "Glitter Trail", "Can't Swim", "Terrible Liar", "Secret Identity"
         ];
         
-        const dice = ["d6", "d8", "d10", "d12"];
+        const dice = ["d6", "d8", "d10", "d12", "d20"]; // Added d20 for upgrades
         
         // DOM Elements
         const traitsContainer = document.getElementById('traits-container');
@@ -353,6 +399,8 @@
         const printableKarma = document.getElementById('printable-karma');
         const printableEquipment = document.getElementById('printable-equipment');
         const printableNotes = document.getElementById('printable-notes');
+        const karmaValueDisplay = document.getElementById('karma-value');
+        const karmaInput = document.getElementById('karma-input');
         
         // State
         let selectedTraits = [];
@@ -360,6 +408,7 @@
         let selectedWeakness = null;
         let assignedDice = {};
         let savedCharacters = [];
+        let karma = 0;
         
         // Initialize options
         function initializeOptions() {
@@ -467,19 +516,32 @@
         
         // Generate character sheet
         function generateCharacterSheet() {
-            // Assign dice values randomly (except weakness which is always d4)
-            const availableDice = [...dice];
-            assignedDice = {};
+            // Update character sheet title
+            document.getElementById('character-sheet-title').textContent = characterNameInput.value.trim() || "Your Character";
             
-            // Assign dice to traits and powers
-            [...selectedTraits, ...selectedPowers].forEach(item => {
-                const randomIndex = Math.floor(Math.random() * availableDice.length);
-                assignedDice[item] = availableDice[randomIndex];
-                availableDice.splice(randomIndex, 1);
-            });
-            
-            // Weakness is always d4
-            assignedDice[selectedWeakness] = 'd4';
+            // Only assign new dice if we're creating a new character (not loading)
+            if (Object.keys(assignedDice).length === 0) {
+                const availableDice = [...dice].filter(d => d !== 'd4' && d !== 'd20'); // Start with basic dice
+                
+                // Assign dice to traits and powers (unique for initial creation)
+                [...selectedTraits, ...selectedPowers].forEach(item => {
+                    if (!assignedDice[item]) {
+                        const randomIndex = Math.floor(Math.random() * availableDice.length);
+                        assignedDice[item] = availableDice[randomIndex];
+                        availableDice.splice(randomIndex, 1);
+                        
+                        // If we ran out of unique dice, allow duplicates
+                        if (availableDice.length === 0) {
+                            availableDice.push(...["d6", "d8", "d10", "d12"]);
+                        }
+                    }
+                });
+                
+                // Weakness is always d4 (but can be upgraded later)
+                if (selectedWeakness && !assignedDice[selectedWeakness]) {
+                    assignedDice[selectedWeakness] = 'd4';
+                }
+            }
             
             // Display character sheet
             characterAttributes.innerHTML = '';
@@ -495,38 +557,76 @@
             });
             
             // Add weakness
-            addCharacterAttribute(selectedWeakness, assignedDice[selectedWeakness], true);
+            if (selectedWeakness) {
+                addCharacterAttribute(selectedWeakness, assignedDice[selectedWeakness], true);
+            }
             
             // Update printable sheet
             updatePrintableSheet();
         }
         
         // Add character attribute to sheet
-        function addCharacterAttribute(name, die, isWeakness = false) {
+        function  addCharacterAttribute(name, die, isWeakness = false) {
             const div = document.createElement('div');
             div.className = 'character-attribute';
             
             const nameSpan = document.createElement('span');
             nameSpan.textContent = name;
             
-            const dieSpan = document.createElement('span');
-            dieSpan.className = 'dice-value';
-            dieSpan.textContent = die;
+            const dieSelect = document.createElement('select');
+            dieSelect.className = 'dice-selector';
+            dieSelect.value = die;
+            
+            // Add dice options
+            const diceOptions = isWeakness ? ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'] : ['d6', 'd8', 'd10', 'd12', 'd20'];
+            diceOptions.forEach(d => {
+                const option = document.createElement('option');
+                option.value = d;
+                option.textContent = d;
+                dieSelect.appendChild(option);
+                if (d === die) option.selected = true;
+                //select the correct
+            });
+            
+            dieSelect.addEventListener('change', (e) => {
+                assignedDice[name] = e.target.value;
+                saveCharacter(); // Auto-save when changing dice
+            });
             
             const rollBtn = document.createElement('button');
             rollBtn.className = 'roll-btn';
             rollBtn.textContent = 'Roll';
-            rollBtn.addEventListener('click', () => rollAttribute(name, die, isWeakness));
+            
+            // Create checkbox for karma usage
+            const karmaCheckboxContainer = document.createElement('div');
+            karmaCheckboxContainer.className = 'use-karma-checkbox';
+            
+            const karmaCheckbox = document.createElement('input');
+            karmaCheckbox.type = 'checkbox';
+            karmaCheckbox.id = `use-karma-${name.replace(/\s+/g, '-')}`;
+            
+            const karmaLabel = document.createElement('label');
+            karmaLabel.htmlFor = karmaCheckbox.id;
+            karmaLabel.textContent = 'Use Karma';
+            
+            karmaCheckboxContainer.appendChild(karmaCheckbox);
+            karmaCheckboxContainer.appendChild(karmaLabel);
+            
+            rollBtn.addEventListener('click', () => {
+                const useKarma = karmaCheckbox.checked && karma > 0;
+                rollAttribute(name, dieSelect.value, isWeakness, useKarma);
+            });
             
             div.appendChild(nameSpan);
-            div.appendChild(dieSpan);
+            div.appendChild(dieSelect);
             div.appendChild(rollBtn);
+            div.appendChild(karmaCheckboxContainer);
             
             characterAttributes.appendChild(div);
         }
         
         // Roll attribute
-        function rollAttribute(name, die, isWeakness) {
+        function rollAttribute(name, die, isWeakness, useKarma = false) {
             let max, result;
             
             switch (die) {
@@ -545,36 +645,47 @@
                 case 'd12':
                     max = 12;
                     break;
+                case 'd20':
+                    max = 20;
+                    break;
                 default:
                     max = 6;
             }
             
             result = Math.floor(Math.random() * max) + 1;
+            const originalResult = result;
             
-            let message = `Rolled ${result} on ${die} for ${name}: `;
+            if (useKarma) {
+                result += 1;
+                karma -= 1;
+                updateKarmaDisplay();
+                saveKarma();
+            }
+            
+            let message = `Rolled ${result} (${originalResult}${useKarma ? ' +1 karma' : ''}) on ${die} for ${name}: `;
             let isSuccess = result > 2;
             let isCritical = false;
             
-            if (result === 1) {
+            if (originalResult === 1) {
                 message += "CRITICAL FAILURE! ";
                 isCritical = true;
-            } else if (result === max) {
+                // Award karma for critical failure
+                karma += 1;
+                updateKarmaDisplay();
+                saveKarma();
+            } else if (originalResult === max) {
                 message += "CRITICAL SUCCESS! ";
                 isCritical = true;
             } else if (!isSuccess) {
                 message += "Failure. ";
+                // Award karma for failure (original roll)
+                if (originalResult <= 2) {
+                    karma += 1;
+                    updateKarmaDisplay();
+                    saveKarma();
+                }
             } else {
                 message += "Success! ";
-            }
-            
-            // Special messages for weaknesses (reverse logic)
-            if (isWeakness) {
-                isSuccess = !isSuccess;
-                if (result === 1) {
-                    message += "Your weakness has no effect this time!";
-                } else if (result === max) {
-                    message += "Your weakness causes major problems!";
-                }
             }
             
             showToast(message, isSuccess, isCritical);
@@ -621,10 +732,49 @@
             
             // Weakness
             printableWeakness.innerHTML = '';
-            const div = document.createElement('div');
-            div.className = 'printable-attribute';
-            div.innerHTML = `<strong>${selectedWeakness}</strong>: ${assignedDice[selectedWeakness]}`;
-            printableWeakness.appendChild(div);
+            if (selectedWeakness) {
+                const div = document.createElement('div');
+                div.className = 'printable-attribute';
+                div.innerHTML = `<strong>${selectedWeakness}</strong>: ${assignedDice[selectedWeakness]}`;
+                printableWeakness.appendChild(div);
+            }
+            
+            // Karma
+            printableKarma.value = karma;
+        }
+        
+        // Karma functions
+        function changeKarma(amount) {
+            karma += amount;
+            if (karma < 0) karma = 0;
+            updateKarmaDisplay();
+            saveKarma();
+        }
+        
+        function setKarma() {
+            const value = parseInt(karmaInput.value);
+            if (!isNaN(value) && value >= 0) {
+                karma = value;
+                updateKarmaDisplay();
+                saveKarma();
+            }
+            karmaInput.value = '';
+        }
+        
+        function updateKarmaDisplay() {
+            karmaValueDisplay.textContent = karma;
+        }
+        
+        function saveKarma() {
+            localStorage.setItem('rpgCharacterKarma', karma.toString());
+        }
+        
+        function loadKarma() {
+            const savedKarma = localStorage.getItem('rpgCharacterKarma');
+            if (savedKarma) {
+                karma = parseInt(savedKarma);
+                updateKarmaDisplay();
+            }
         }
         
         // Save character
@@ -641,7 +791,7 @@
                 powers: selectedPowers,
                 weakness: selectedWeakness,
                 dice: assignedDice,
-                karma: printableKarma.value,
+                karma: karma,
                 equipment: printableEquipment.value,
                 notes: printableNotes.value,
                 timestamp: new Date().getTime()
@@ -728,6 +878,7 @@
             selectedTraits = [];
             selectedPowers = [];
             selectedWeakness = null;
+            assignedDice = char.dice || {};
             
             // Update name
             characterNameInput.value = char.name;
@@ -735,26 +886,28 @@
             // Update selections
             char.traits.forEach(trait => {
                 selectedTraits.push(trait);
-                updateOptionSelection(traitsContainer, selectedTraits);
             });
             
             char.powers.forEach(power => {
                 selectedPowers.push(power);
-                updateOptionSelection(powersContainer, selectedPowers);
             });
             
             selectedWeakness = char.weakness;
-            updateOptionSelection(weaknessContainer, [selectedWeakness]);
             
-            // Assign dice
-            assignedDice = char.dice;
+            // Update UI selections
+            updateOptionSelection(traitsContainer, selectedTraits);
+            updateOptionSelection(powersContainer, selectedPowers);
+            updateOptionSelection(weaknessContainer, selectedWeakness ? [selectedWeakness] : []);
             
-            // Generate character sheet
+            // Load karma
+            karma = char.karma || 0;
+            updateKarmaDisplay();
+            
+            // Generate character sheet with loaded dice values
             generateCharacterSheet();
             characterSheet.style.display = 'block';
             
             // Load additional data
-            if (char.karma) printableKarma.value = char.karma;
             if (char.equipment) printableEquipment.value = char.equipment;
             if (char.notes) printableNotes.value = char.notes;
             
@@ -820,6 +973,7 @@
         
         // Initialize
         initializeOptions();
+        loadKarma();
     </script>
 </body>
 </html>
