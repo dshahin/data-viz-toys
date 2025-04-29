@@ -94,6 +94,7 @@
 </head>
 <body>
     <h1>Stock Comparison Tree Generator</h1>
+    <h2>(Marketstack API)</h2>
     
     <div class="container">
         <div class="controls">
@@ -459,11 +460,11 @@ async function fetchStockData(symbol) {
         document.getElementById('apiKey').addEventListener('change', function() {
             const apiKey = this.value.trim();
             if (apiKey) {
-                localStorage.setItem('apiKey2', apiKey);
+                localStorage.setItem('apiKey_mstack', apiKey);
             }
         });
         // Retrieve the API key from local storage if available
-        const storedApiKey = localStorage.getItem('apiKey2');
+        const storedApiKey = localStorage.getItem('apiKey_mstack');
         if (storedApiKey) {
             document.getElementById('apiKey').value = storedApiKey;
         }

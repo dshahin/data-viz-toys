@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Monte Carlo Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card {
+            display: inline-block;
+            width: 60px;
+            height: 90px;
+            margin: 5px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background-color: white;
+            text-align: center;
+            line-height: 90px;
+            font-size: 24px;
+            position: relative;
+        }
+        .card.hearts, .card.diamonds {
+            color: red;
+        }
+        .card.spades, .card.clubs {
+            color: black;
+        }
+        .card-back {
+            background: repeating-linear-gradient(
+                45deg,
+                #1565C0,
+                #1565C0 10px,
+                #0D47A1 10px,
+                #0D47A1 20px
+            );
+            color: white;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #eee;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        select, input {
+            padding: 5px;
+            margin-right: 10px;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .progress {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .hand-strength {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Texas Hold'em Monte Carlo Simulator</h1>
+        
+        <div class="controls">
+            <h3>Your Hand:</h3>
+            <div id="player-cards">
+                <div class="card card-back" id="player-card-1">?</div>
+                <div class="card card-back" id="player-card-2">?</div>
+            </div>
+            
+            <h3>Community Cards:</h3>
+            <div id="community-cards">
+                <div class="card card-back" id="flop-1">?</div>
+                <div class="card card-back" id="flop-2">?</div>
+                <div class="card card-back" id="flop-3">?</div>
+                <div class="card card-back" id="turn">?</div>
+                <div class="card card-back" id="river">?</div>
+            </div>
+            
+            <div>
+                <h3>Simulation Parameters:</h3>
+                <label for="opponents">Number of Opponents:</label>
+                <select id="opponents">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                </select>
+                
+                <label for="iterations">Simulations:</label>
+                <select id="iterations">
+                    <option value="100">100</option>
+                    <option value="500">500</option>
+                    <option value="1000" selected>1,000</option>
+                    <option value="5000">5,000</option>
+                    <option value="10000">10,000</option>
+                </select>
+                
+                <button id="simulate">Simulate</button>
+                <button id="random-hand">Random Hand</button>
+                <button id="clear">Clear</button>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress" id="progress-bar"></div>
+            </div>
+        </div>
+        
+        <div class="results">
+            <h3>Results:</h3>
+            <div id="win-percentage">Win Percentage: -</div>
+            <div id="tie-percentage">Tie Percentage: -</div>
+            <div id="hand-strength" class="hand-strength">Hand Strength: -</div>
+            
+            <table id="hand-stats">
+                <thead>
+                    <tr>
+                        <th>Hand</th>
+                        <th>Probability</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>High Card</td><td id="high-card">-</td></tr>
+                    <tr><td>Pair</td><td id="pair">-</td></tr>
+                    <tr><td>Two Pair</td><td id="two-pair">-</td></tr>
+                    <tr><td>Three of a Kind</td><td id="three-kind">-</td></tr>
+                    <tr><td>Straight</td><td id="straight">-</td></tr>
+                    <tr><td>Flush</td><td id="flush">-</td></tr>
+                    <tr><td>Full House</td><td id="full-house">-</td></tr>
+                    <tr><td>Four of a Kind</td><td id="four-kind">-</td></tr>
+                    <tr><td>Straight Flush</td><td id="straight-flush">-</td></tr>
+                    <tr><td>Royal Flush</td><td id="royal-flush">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Card deck and utilities
+        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const rankValues = {
+            '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, 
+            '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+        };
+        
+        // Create a new deck
+        function createDeck() {
+            let deck = [];
+            for (let suit of suits) {
+                for (let rank of ranks) {
+                    deck.push({suit, rank, value: rankValues[rank]});
+                }
+            }
+            return deck;
+        }
+        
+        // Shuffle deck using Fisher-Yates algorithm
+        function shuffleDeck(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        }
+        
+        // Remove known cards from the deck
+        function getRemainingDeck(playerCards, communityCards) {
+            let deck = createDeck();
+            return deck.filter(card => {
+                return !playerCards.some(pc => pc.rank === card.rank && pc.suit === card.suit) &&
+                       !communityCards.some(cc => cc.rank === card.rank && cc.suit === card.suit);
+            });
+        }
+        
+        // Evaluate the best 5-card hand from 7 cards
+        function evaluateHand(cards) {
+            // Sort cards by value (descending)
+            cards.sort((a, b) => b.value - a.value);
+            
+            // Check for flush (all same suit)
+            let flushSuit = null;
+            let suitCounts = {};
+            for (let card of cards) {
+                suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1;
+                if (suitCounts[card.suit] >= 5) {
+                    flushSuit = card.suit;
+                }
+            }
+            
+            // Check for straight
+            let straight = null;
+            let uniqueValues = [...new Set(cards.map(c => c.value))];
+            uniqueValues.sort((a, b) => b - a);
+            
+            // Check for Ace-low straight (A-2-3-4-5)
+            if (uniqueValues.includes(14) && uniqueValues.includes(5) && uniqueValues.includes(4) && 
+                uniqueValues.includes(3) && uniqueValues.includes(2)) {
+                straight = [5, 4, 3, 2, 14]; // Represented as 5-high straight
+            }
+            
+            // Check other straights
+            for (let i = 0; i <= uniqueValues.length - 5 && !straight; i++) {
+                if (uniqueValues[i] - uniqueValues[i+4] === 4) {
+                    straight = uniqueValues.slice(i, i+5);
+                }
+            }
+            
+            // Check for straight flush and royal flush
+            if (flushSuit) {
+                let flushCards = cards.filter(c => c.suit === flushSuit);
+                let flushValues = [...new Set(flushCards.map(c => c.value))];
+                flushValues.sort((a, b) => b - a);
+                
+                // Check for Ace-low straight flush
+                let straightFlush = null;
+                if (flushValues.includes(14) && flushValues.includes(5) && flushValues.includes(4) && 
+                    flushValues.includes(3) && flushValues.includes(2)) {
+                    straightFlush = [5, 4, 3, 2, 14];
+                }
+                
+                // Check other straight flushes
+                for (let i = 0; i <= flushValues.length - 5 && !straightFlush; i++) {
+                    if (flushValues[i] - flushValues[i+4] === 4) {
+                        straightFlush = flushValues.slice(i, i+5);
+                    }
+                }
+                
+                if (straightFlush) {
+                    if (straightFlush[0] === 14) { // Royal flush
+                        return { strength: 10, values: straightFlush, name: "Royal Flush" };
+                    }
+                    return { strength: 9, values: straightFlush, name: "Straight Flush" };
+                }
+            }
+            
+            // Check for four of a kind
+            let rankCounts = {};
+            for (let card of cards) {
+                rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+            }
+            
+            let fourOfAKindRank = null;
+            for (let rank in rankCounts) {
+                if (rankCounts[rank] === 4) {
+                    fourOfAKindRank = rank;
+                    break;
+                }
+            }
+            
+            if (fourOfAKindRank) {
+                let kickers = cards.filter(c => c.rank !== fourOfAKindRank)
+                                    .sort((a, b) => b.value - a.value)
+                                    .slice(0, 1)
+                                    .map(c => c.value);
+                return { 
+                    strength: 8, 
+                    values: [rankValues[fourOfAKindRank]], 
+                    kickers: kickers,
+                    name: "Four of a Kind" 
+                };
+            }
+            
+            // Check for full house
+            let threeRanks = [];
+            let twoRanks = [];
+            for (let rank in rankCounts) {
+                if (rankCounts[rank] >= 3) {
+                    threeRanks.push(rank);
+                } else if (rankCounts[rank] >= 2) {
+                    twoRanks.push(rank);
+                }
+            }
+            
+            threeRanks.sort((a, b) => rankValues[b] - rankValues[a]);
+            twoRanks.sort((a, b) => rankValues[b] - rankValues[a]);
+            
+            if (threeRanks.length >= 1 && (threeRanks.length >= 2 || twoRanks.length >= 1)) {
+                let trips = threeRanks[0];
+                let pair = threeRanks.length >= 2 ? threeRanks[1] : twoRanks[0];
+                return { 
+                    strength: 7, 
+                    values: [rankValues[trips], rankValues[pair]], 
+                    name: "Full House" 
+                };
+            }
+            
+            // Check for flush
+            if (flushSuit) {
+                let flushCards = cards.filter(c => c.suit === flushSuit)
+                                     .sort((a, b) => b.value - a.value)
+                                     .slice(0, 5);
+                return { 
+                    strength: 6, 
+                    values: flushCards.map(c => c.value), 
+                    name: "Flush" 
+                };
+            }
+            
+            // Check for straight
+            if (straight) {
+                return { 
+                    strength: 5, 
+                    values: straight, 
+                    name: "Straight" 
+                };
+            }
+            
+            // Check for three of a kind
+            if (threeRanks.length >= 1) {
+                let kickers = cards.filter(c => c.rank !== threeRanks[0])
+                                    .sort((a, b) => b.value - a.value)
+                                    .slice(0, 2)
+                                    .map(c => c.value);
+                return { 
+                    strength: 4, 
+                    values: [rankValues[threeRanks[0]]], 
+                    kickers: kickers,
+                    name: "Three of a Kind" 
+                };
+            }
+            
+            // Check for two pair
+            if (twoRanks.length >= 2) {
+                let kicker = cards.filter(c => c.rank !== twoRanks[0] && c.rank !== twoRanks[1])
+                                  .sort((a, b) => b.value - a.value)[0].value;
+                return { 
+                    strength: 3, 
+                    values: [rankValues[twoRanks[0]], rankValues[twoRanks[1]]], 
+                    kickers: [kicker],
+                    name: "Two Pair" 
+                };
+            }
+            
+            // Check for pair
+            if (twoRanks.length === 1) {
+                let kickers = cards.filter(c => c.rank !== twoRanks[0])
+                                  .sort((a, b) => b.value - a.value)
+                                  .slice(0, 3)
+                                  .map(c => c.value);
+                return { 
+                    strength: 2, 
+                    values: [rankValues[twoRanks[0]]], 
+                    kickers: kickers,
+                    name: "Pair" 
+                };
+            }
+            
+            // High card
+            return { 
+                strength: 1, 
+                values: cards.slice(0, 5).map(c => c.value), 
+                name: "High Card" 
+            };
+        }
+        
+        // Compare two hands to see which is better (1 = hand1 wins, -1 = hand2 wins, 0 = tie)
+        function compareHands(hand1, hand2) {
+            if (hand1.strength > hand2.strength) return 1;
+            if (hand1.strength < hand2.strength) return -1;
+            
+            // Same hand strength, compare values
+            for (let i = 0; i < hand1.values.length; i++) {
+                if (hand1.values[i] > hand2.values[i]) return 1;
+                if (hand1.values[i] < hand2.values[i]) return -1;
+            }
+            
+            // Compare kickers if they exist
+            if (hand1.kickers && hand2.kickers) {
+                for (let i = 0; i < hand1.kickers.length; i++) {
+                    if (hand1.kickers[i] > hand2.kickers[i]) return 1;
+                    if (hand1.kickers[i] < hand2.kickers[i]) return -1;
+                }
+            }
+            
+            return 0; // Tie
+        }
+        
+        // Run a single simulation
+        function runSimulation(playerCards, communityCards, numOpponents) {
+            let remainingDeck = getRemainingDeck(playerCards, communityCards);
+            remainingDeck = shuffleDeck(remainingDeck);
+            
+            // Deal remaining community cards if needed
+            let allCommunityCards = [...communityCards];
+            let communityNeeded = 5 - communityCards.length;
+            for (let i = 0; i < communityNeeded; i++) {
+                allCommunityCards.push(remainingDeck.pop());
+            }
+            
+            // Deal opponent cards
+            let opponents = [];
+            for (let i = 0; i < numOpponents; i++) {
+                opponents.push([remainingDeck.pop(), remainingDeck.pop()]);
+            }
+            
+            // Evaluate player's hand
+            let playerHand = evaluateHand([...playerCards, ...allCommunityCards]);
+            
+            // Evaluate opponents' hands
+            let bestOpponentHand = null;
+            for (let opponent of opponents) {
+                let hand = evaluateHand([...opponent, ...allCommunityCards]);
+                if (!bestOpponentHand || compareHands(hand, bestOpponentHand) > 0) {
+                    bestOpponentHand = hand;
+                }
+            }
+            
+            // Compare hands
+            return compareHands(playerHand, bestOpponentHand);
+        }
+        
+        // Run Monte Carlo simulation
+        function runMonteCarlo(playerCards, communityCards, numOpponents, iterations, updateProgress) {
+            let wins = 0;
+            let ties = 0;
+            let handCounts = {
+                'High Card': 0,
+                'Pair': 0,
+                'Two Pair': 0,
+                'Three of a Kind': 0,
+                'Straight': 0,
+                'Flush': 0,
+                'Full House': 0,
+                'Four of a Kind': 0,
+                'Straight Flush': 0,
+                'Royal Flush': 0
+            };
+            
+            for (let i = 0; i < iterations; i++) {
+                let remainingDeck = getRemainingDeck(playerCards, communityCards);
+                remainingDeck = shuffleDeck(remainingDeck);
+                
+                // Deal remaining community cards if needed
+                let allCommunityCards = [...communityCards];
+                let communityNeeded = 5 - communityCards.length;
+                for (let j = 0; j < communityNeeded; j++) {
+                    allCommunityCards.push(remainingDeck.pop());
+                }
+                
+                // Evaluate player's final hand
+                let playerHand = evaluateHand([...playerCards, ...allCommunityCards]);
+                handCounts[playerHand.name]++;
+                
+                // Deal opponent cards
+                let opponents = [];
+                for (let j = 0; j < numOpponents; j++) {
+                    opponents.push([remainingDeck.pop(), remainingDeck.pop()]);
+                }
+                
+                // Evaluate opponents' hands
+                let bestOpponentHand = null;
+                for (let opponent of opponents) {
+                    let hand = evaluateHand([...opponent, ...allCommunityCards]);
+                    if (!bestOpponentHand || compareHands(hand, bestOpponentHand) > 0) {
+                        bestOpponentHand = hand;
+                    }
+                }
+                
+                // Compare hands
+                let result = compareHands(playerHand, bestOpponentHand);
+                if (result > 0) wins++;
+                if (result === 0) ties++;
+                
+                // Update progress
+                if (updateProgress && i % 100 === 0) {
+                    updateProgress(i / iterations * 100);
+                }
+            }
+            
+            return {
+                winPercentage: (wins / iterations * 100).toFixed(2),
+                tiePercentage: (ties / iterations * 100).toFixed(2),
+                handProbabilities: Object.fromEntries(
+                    Object.entries(handCounts).map(([hand, count]) => [hand, (count / iterations * 100).toFixed(2) + '%'])
+                )
+            };
+        }
+        
+        // UI Functions
+        function updateCardDisplay(cardElement, card) {
+            if (!card) {
+                cardElement.textContent = '?';
+                cardElement.className = 'card card-back';
+                return;
+            }
+            
+            cardElement.textContent = card.rank;
+            cardElement.className = `card ${card.suit}`;
+            
+            // Add suit symbol
+            let suitSymbol = '';
+            switch(card.suit) {
+                case 'hearts': suitSymbol = '♥'; break;
+                case 'diamonds': suitSymbol = '♦'; break;
+                case 'clubs': suitSymbol = '♣'; break;
+                case 'spades': suitSymbol = '♠'; break;
+            }
+            
+            let symbolElement = document.createElement('div');
+            symbolElement.textContent = suitSymbol;
+            symbolElement.style.position = 'absolute';
+            symbolElement.style.bottom = '5px';
+            symbolElement.style.right = '5px';
+            symbolElement.style.fontSize = '16px';
+            cardElement.appendChild(symbolElement);
+        }
+        
+        function getSelectedCards(prefix, count) {
+            let cards = [];
+            for (let i = 1; i <= count; i++) {
+                let select = document.getElementById(`${prefix}-${i}`);
+                let suit = select.suit.value;
+                let rank = select.rank.value;
+                if (suit && rank) {
+                    cards.push({ suit, rank, value: rankValues[rank] });
+                }
+            }
+            return cards;
+        }
+        
+        function setRandomHand() {
+            let deck = createDeck();
+            shuffleDeck(deck);
+            
+            // Set player cards
+            let playerCards = [deck.pop(), deck.pop()];
+            updateCardDisplay(document.getElementById('player-card-1'), playerCards[0]);
+            updateCardDisplay(document.getElementById('player-card-2'), playerCards[1]);
+            
+            // Clear community cards
+            for (let id of ['flop-1', 'flop-2', 'flop-3', 'turn', 'river']) {
+                updateCardDisplay(document.getElementById(id), null);
+            }
+            
+            return playerCards;
+        }
+        
+        function setRandomCommunityCards(playerCards) {
+            let communityCards = [];
+            let deck = getRemainingDeck(playerCards, []);
+            shuffleDeck(deck);
+            
+            // Set flop (first 3 community cards)
+            let flop = [deck.pop(), deck.pop(), deck.pop()];
+            updateCardDisplay(document.getElementById('flop-1'), flop[0]);
+            updateCardDisplay(document.getElementById('flop-2'), flop[1]);
+            updateCardDisplay(document.getElementById('flop-3'), flop[2]);
+            communityCards.push(...flop);
+            
+            // Set turn (4th community card)
+            let turn = deck.pop();
+            updateCardDisplay(document.getElementById('turn'), turn);
+            communityCards.push(turn);
+            
+            // Set river (5th community card)
+            let river = deck.pop();
+            updateCardDisplay(document.getElementById('river'), river);
+            communityCards.push(river);
+            
+            return communityCards;
+        }
+        
+        // Event Listeners
+        document.getElementById('simulate').addEventListener('click', async function() {
+            let playerCards = [];
+            let communityCards = [];
+            
+            // Get player cards
+            let card1 = document.getElementById('player-card-1');
+            let card2 = document.getElementById('player-card-2');
+            if (card1.textContent === '?' || card2.textContent === '?') {
+                alert('Please set your hole cards first');
+                return;
+            }
+            
+            // Extract card data from UI
+            playerCards.push({
+                rank: card1.textContent,
+                suit: card1.className.replace('card ', '').replace(' card-back', ''),
+                value: rankValues[card1.textContent]
+            });
+            
+            playerCards.push({
+                rank: card2.textContent,
+                suit: card2.className.replace('card ', '').replace(' card-back', ''),
+                value: rankValues[card2.textContent]
+            });
+            
+            // Get community cards
+            let communityIds = ['flop-1', 'flop-2', 'flop-3', 'turn', 'river'];
+            for (let id of communityIds) {
+                let cardElement = document.getElementById(id);
+                if (cardElement.textContent !== '?') {
+                    communityCards.push({
+                        rank: cardElement.textContent,
+                        suit: cardElement.className.replace('card ', '').replace(' card-back', ''),
+                        value: rankValues[cardElement.textContent]
+                    });
+                }
+            }
+            
+            let numOpponents = parseInt(document.getElementById('opponents').value);
+            let iterations = parseInt(document.getElementById('iterations').value);
+            
+            // Disable buttons during simulation
+            document.getElementById('simulate').disabled = true;
+            document.getElementById('random-hand').disabled = true;
+            document.getElementById('clear').disabled = true;
+            
+            // Run simulation with progress updates
+            let progressBar = document.getElementById('progress-bar');
+            
+            let results = await new Promise(resolve => {
+                setTimeout(() => {
+                    resolve(runMonteCarlo(
+                        playerCards, 
+                        communityCards, 
+                        numOpponents, 
+                        iterations,
+                        (progress) => {
+                            progressBar.style.width = progress + '%';
+                        }
+                    ));
+                }, 100);
+            });
+            
+            // Update results
+            document.getElementById('win-percentage').textContent = `Win Percentage: ${results.winPercentage}%`;
+            document.getElementById('tie-percentage').textContent = `Tie Percentage: ${results.tiePercentage}%`;
+            
+            // Update hand probabilities
+            for (let [hand, prob] of Object.entries(results.handProbabilities)) {
+                let el = document.getElementById(hand.toLowerCase().replace(/ /g, '-'));
+                if(el){
+                    el.textContent = prob;
+                }
+            }
+            
+            // Determine hand strength description
+            let winRate = parseFloat(results.winPercentage) + parseFloat(results.tiePercentage)/2;
+            let strengthText = '';
+            if (winRate > 70) strengthText = 'Very Strong';
+            else if (winRate > 55) strengthText = 'Strong';
+            else if (winRate > 45) strengthText = 'Moderate';
+            else if (winRate > 30) strengthText = 'Weak';
+            else strengthText = 'Very Weak';
+            
+            document.getElementById('hand-strength').textContent = `Hand Strength: ${strengthText} (${winRate.toFixed(1)}%)`;
+            
+            // Reset progress bar
+            progressBar.style.width = '0%';
+            
+            // Re-enable buttons
+            document.getElementById('simulate').disabled = false;
+            document.getElementById('random-hand').disabled = false;
+            document.getElementById('clear').disabled = false;
+        });
+        
+        document.getElementById('random-hand').addEventListener('click', function() {
+            let playerCards = setRandomHand();
+            
+            // Clear results
+            document.getElementById('win-percentage').textContent = 'Win Percentage: -';
+            document.getElementById('tie-percentage').textContent = 'Tie Percentage: -';
+            document.getElementById('hand-strength').textContent = 'Hand Strength: -';
+            
+            for (let id of ['high-card', 'pair', 'two-pair', 'three-kind', 'straight', 
+                           'flush', 'full-house', 'four-kind', 'straight-flush', 'royal-flush']) {
+                document.getElementById(id).textContent = '-';
+            }
+        });
+        
+        document.getElementById('clear').addEventListener('click', function() {
+            // Clear player cards
+            updateCardDisplay(document.getElementById('player-card-1'), null);
+            updateCardDisplay(document.getElementById('player-card-2'), null);
+            
+            // Clear community cards
+            for (let id of ['flop-1', 'flop-2', 'flop-3', 'turn', 'river']) {
+                updateCardDisplay(document.getElementById(id), null);
+            }
+            
+            // Clear results
+            document.getElementById('win-percentage').textContent = 'Win Percentage: -';
+            document.getElementById('tie-percentage').textContent = 'Tie Percentage: -';
+            document.getElementById('hand-strength').textContent = 'Hand Strength: -';
+            
+            for (let id of ['high-card', 'pair', 'two-pair', 'three-kind', 'straight', 
+                           'flush', 'full-house', 'four-kind', 'straight-flush', 'royal-flush']) {
+                document.getElementById(id).textContent = '-';
+            }
+        });
+        
+        // Make cards clickable to set them
+        function setupCardInput(cardElement) {
+            cardElement.addEventListener('click', function() {
+                if (this.textContent === '?') {
+                    // Create popup to select card
+                    let popup = document.createElement('div');
+                    popup.style.position = 'fixed';
+                    popup.style.top = '50%';
+                    popup.style.left = '50%';
+                    popup.style.transform = 'translate(-50%, -50%)';
+                    popup.style.backgroundColor = 'white';
+                    popup.style.padding = '20px';
+                    popup.style.border = '1px solid #333';
+                    popup.style.borderRadius = '5px';
+                    popup.style.zIndex = '1000';
+                    popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+                    
+                    // Create suit selection
+                    let suitSelect = document.createElement('select');
+                    for (let suit of suits) {
+                        let option = document.createElement('option');
+                        option.value = suit;
+                        option.textContent = suit.charAt(0).toUpperCase() + suit.slice(1);
+                        suitSelect.appendChild(option);
+                    }
+                    
+                    // Create rank selection
+                    let rankSelect = document.createElement('select');
+                    for (let rank of ranks) {
+                        let option = document.createElement('option');
+                        option.value = rank;
+                        option.textContent = rank;
+                        rankSelect.appendChild(option);
+                    }
+                    
+                    // Create OK button
+                    let okButton = document.createElement('button');
+                    okButton.textContent = 'OK';
+                    okButton.style.marginLeft = '10px';
+                    
+                    popup.appendChild(document.createTextNode('Suit: '));
+                    popup.appendChild(suitSelect);
+                    popup.appendChild(document.createElement('br'));
+                    popup.appendChild(document.createTextNode('Rank: '));
+                    popup.appendChild(rankSelect);
+                    popup.appendChild(okButton);
+                    
+                    document.body.appendChild(popup);
+                    
+                    okButton.addEventListener('click', function() {
+                        let card = {
+                            suit: suitSelect.value,
+                            rank: rankSelect.value,
+                            value: rankValues[rankSelect.value]
+                        };
+                        updateCardDisplay(cardElement, card);
+                        document.body.removeChild(popup);
+                    });
+                } else {
+                    // Clear the card
+                    updateCardDisplay(cardElement, null);
+                }
+            });
+        }
+        
+        // Initialize card inputs
+        setupCardInput(document.getElementById('player-card-1'));
+        setupCardInput(document.getElementById('player-card-2'));
+        setupCardInput(document.getElementById('flop-1'));
+        setupCardInput(document.getElementById('flop-2'));
+        setupCardInput(document.getElementById('flop-3'));
+        setupCardInput(document.getElementById('turn'));
+        setupCardInput(document.getElementById('river'));
+    </script>
+</body>
+</html>

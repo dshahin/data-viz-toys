@@ -94,6 +94,7 @@
 </head>
 <body>
     <h1>Stock Comparison Tree Generator</h1>
+    <h2>alphavantage API</h2>
     
     <div class="container">
         <div class="controls">
@@ -416,11 +417,11 @@
         document.getElementById('apiKey').addEventListener('change', function() {
             const apiKey = this.value.trim();
             if (apiKey) {
-                localStorage.setItem('apiKey', apiKey);
+                localStorage.setItem('apiKey_alphavantage', apiKey);
             }
         });
         // Retrieve the API key from local storage if available
-        const storedApiKey = localStorage.getItem('apiKey');
+        const storedApiKey = localStorage.getItem('apiKey_alphavantage');
         if (storedApiKey) {
             document.getElementById('apiKey').value = storedApiKey;
         }

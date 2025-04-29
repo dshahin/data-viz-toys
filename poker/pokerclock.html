@@ -13,6 +13,7 @@
     <meta name="author" content="Your Name">
     <meta property="og:title" content="♥️♣️Free Poker Tournament Clock♠️♦️">
     <meta property="og:description" content="A customizable poker tournament clock for Texas Hold'em games.">
+    <meta name="google-adsense-account" content="ca-pub-7602367610875041">
 </head>
     <body>
     <div class="container">
@@ -24,6 +25,7 @@
 
         <div class="ads">
             <!-- this is where the google ads go in prod -->
+             
         </div>
 
         <main>
@@ -88,7 +90,7 @@
         <footer>
             <button id="addBreak" class="btn"><i class="fas fa-coffee"></i> Add Break</button>
             <button id="manageStructure" class="btn manage-btn"><i class="fas fa-cog"></i> Manage Structure</button>
-            
+            <div id="offline-indicator">OFFLINE</div>
         </footer>
     </div>
 
@@ -182,5 +184,35 @@
     <script src="speak.js"></script>
     <script src="samplestructures.js"></script>
     <script src="pokerclockapp.js"></script>
+    <script >
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/poker/serviceworker.js')
+                .then(registration => {
+                  console.log('ServiceWorker registration successful');
+                })
+                .catch(err => {
+                  console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+          }
+
+        // Check if offline
+window.addEventListener('offline', () => {
+    // Show offline indicator
+    document.getElementById('offline-indicator').style.display = 'block';
+  });
+  
+  window.addEventListener('online', () => {
+    // Hide offline indicator
+    document.getElementById('offline-indicator').style.display = 'none';
+    // Optionally sync data with server
+  });
+  
+  // Initial check
+  if (!navigator.onLine) {
+    document.getElementById('offline-indicator').style.display = 'block';
+  }
+    </script>
 </body>
 </html>
