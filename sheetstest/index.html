@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Scanner</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+        input {
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 5px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .hidden {
+            display: none;
+        }
+        #scanResult {
+            margin-top: 20px;
+        }
+        .edit-field {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+    </style>
+    <script>
+        // Global variables
+gapiInited = false;
+gisInited = false; 
+
+// Initialize Google API Client
+async function initializeGapiClient() {
+  try {
+    await gapi.client.init({
+      discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+    });
+    gapiInited = true;
+    maybeEnableButtons();
+  } catch (error) {
+    console.error('Error initializing GAPI client:', error);
+  }
+}
+
+// Called when Google API script loads
+function gapiLoaded() {
+  gapi.load('client', initializeGapiClient);
+}
+
+// Called when Google Identity Services script loads
+function gisLoaded() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: 'YOUR_CLIENT_ID.apps.googleusercontent.com',
+    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+    callback: '', // Will be set in handleAuthClick
+  });
+  gisInited = true;
+  maybeEnableButtons();
+}
+
+// Enable buttons when both APIs are loaded
+function maybeEnableButtons() {
+  const signInButton = document.getElementById('signInButton');
+  if (gapiInited && gisInited && signInButton) {
+    signInButton.classList.remove('hidden');
+  }
+}
+
+// Authentication functions
+function handleAuthClick() {
+  tokenClient.callback = async (resp) => {
+    if (resp.error !== undefined) {
+      throw (resp);
+    }
+    document.getElementById('signInButton').classList.add('hidden');
+    document.getElementById('signOutButton').classList.remove('hidden');
+    document.getElementById('spreadsheetSection').classList.remove('hidden');
+  };
+
+  if (gapi.client.getToken() === null) {
+    tokenClient.requestAccessToken({prompt: ''});
+  } else {
+    tokenClient.requestAccessToken({prompt: 'consent'});
+  }
+}
+
+function handleSignoutClick() {
+  const token = gapi.client.getToken();
+  if (token !== null) {
+    google.accounts.oauth2.revoke(token.access_token);
+    gapi.client.setToken('');
+    document.getElementById('signInButton').classList.remove('hidden');
+    document.getElementById('signOutButton').classList.add('hidden');
+    document.getElementById('spreadsheetSection').classList.add('hidden');
+  }
+}
+
+// Make functions available globally
+window.gapiLoaded = gapiLoaded;
+window.gisLoaded = gisLoaded;
+window.handleAuthClick = handleAuthClick;
+window.handleSignoutClick = handleSignoutClick;
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  // Add event listeners
+  document.getElementById('signInButton')?.addEventListener('click', handleAuthClick);
+  document.getElementById('signOutButton')?.addEventListener('click', handleSignoutClick);
+  
+  // Initialize other parts of your app...
+});
+    </script>
+    
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+
+</head>
+<body>
+    <h1>Inventory Scanner</h1>
+    
+    <div class="section" id="authSection">
+        <h2>Authentication</h2>
+        <p>Please sign in with Google to access your spreadsheet data.</p>
+        <button id="signInButton">Sign in with Google</button>
+        <button id="signOutButton" class="hidden">Sign Out</button>
+    </div>
+    
+    <div class="section hidden" id="spreadsheetSection">
+        <h2>Spreadsheet Settings</h2>
+        <input type="text" id="spreadsheetId" placeholder="Enter Google Spreadsheet ID">
+        <button id="loadDataButton">Load Data</button>
+        <div id="spreadsheetStatus"></div>
+    </div>
+    
+    <div class="section hidden" id="scanSection">
+        <h2>Scan Item</h2>
+        <input type="text" id="barcodeInput" placeholder="Scan barcode or enter SKU manually">
+        <div id="scanResult"></div>
+    </div>
+    
+    <div class="section hidden" id="dataSection">
+        <h2>Local Data</h2>
+        <button id="refreshDataButton">Refresh from Spreadsheet</button>
+        <button id="clearDataButton">Clear Local Data</button>
+        <div id="dataStatus"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

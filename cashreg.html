@@ -286,6 +286,18 @@
         });
 
         function setupEventListeners() {
+            //apiKey and Sheet ID storage
+            
+            const sheetId = localStorage.getItem('sheetId');
+            const apiKey = localStorage.getItem('apiKey');
+            apiKeyInput.value = apiKey;
+            sheetIdInput.value = sheetId;
+            sheetIdInput.addEventListener('change', function() {
+                localStorage.setItem('sheetId', this.value);
+            });
+            apiKeyInput.addEventListener('change', function() {
+                localStorage.setItem('apiKey', this.value);
+            });
             // Barcode scanning
             barcodeInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
@@ -717,10 +729,13 @@
                 alert('Not connected to Google Sheet. Transaction not saved.');
                 return;
             }
-
-            const sheetId = sheetIdInput.value.trim();
-            const apiKey = apiKeyInput.value.trim();
-            const now = new Date().toISOString();
+            //save and restore sheetId and apiKey in localStorage
+            //const sheetId = sheetIdInput.value.trim();
+            //const apiKey = apiKeyInput.value.trim();
+            const sheetId = localStorage.getItem('sheetId');
+            const apiKey = localStorage.getItem('apiKey');
+            
+            const now = new Date().toISOString(); 
 
             // Prepare transaction data for the ledger
             const itemsSummary = currentTransaction.items.map(item => 

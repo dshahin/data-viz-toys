@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Color Wheel Clock</title>
+    <title>🌈 Color Wheel Clock</title>
     <style>
         body {
             margin: 0;
@@ -684,6 +684,10 @@
             const hours = now.getHours() % 12;
             const minutes = now.getMinutes();
             const seconds = now.getSeconds();
+
+            //change document title to be current time
+            document.title = `🌈${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
             
             // Check for top of the hour
             if (minutes === 0 && seconds === 0) {

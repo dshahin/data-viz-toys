@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roguelike Adventure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            background-color: #111;
+            color: #ddd;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            border: 2px solid #333;
+            margin-bottom: 20px;
+            background-color: #000;
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            width: 800px;
+            margin-bottom: 10px;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        button {
+            background-color: #333;
+            color: #ddd;
+            border: 1px solid #555;
+            padding: 8px 15px;
+            margin: 0 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        .log {
+            width: 800px;
+            height: 100px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #222;
+            color: #afa;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Roguelike Adventure</h1>
+        <div class="stats">
+            <div>Level: <span id="level">1</span></div>
+            <div>Floor: <span id="floor">1</span></div>
+            <div>Health: <span id="health">100</span>/<span id="max-health">100</span></div>
+            <div>Attack: <span id="attack">10</span></div>
+            <div>Defense: <span id="defense">5</span></div>
+            <div>XP: <span id="xp">0</span>/<span id="xp-to-level">100</span></div>
+            <div>GP: <span id="gp">0</span></div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="log" id="gameLog"></div>
+        <div class="controls">
+            <button id="newGameBtn">New Game</button>
+            <button id="saveGameBtn">Save Game</button>
+            <button id="loadGameBtn">Load Game</button>
+        </div>
+        <div class="instructions">
+            <p>Use arrow keys or WASD to move. Fight monsters to gain XP and find the stairs (>) to descend.</p>
+        </div>
+    </div>
+
+    <script>
+        // Game constants
+        const TILE_SIZE = 32;
+        const MAP_WIDTH = 25;
+        const MAP_HEIGHT = 18;
+        const CANVAS_WIDTH = MAP_WIDTH * TILE_SIZE;
+        const CANVAS_HEIGHT = MAP_HEIGHT * TILE_SIZE;
+
+        // Game state
+        let gameState = {
+            player: {
+                x: 0,
+                y: 0,
+                health: 100,
+                maxHealth: 100,
+                attack: 10,
+                defense: 5,
+                xp: 0,
+                gp: 0,
+                level: 1,
+                xpToLevel: 100
+            },
+            currentFloor: 1,
+            map: [],
+            entities: [],
+            gameLog: [],
+            discoveredTiles: Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(false)),
+            visibleTiles: Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(false))
+        };
+
+        // Tile types
+        const TILE_TYPES = {
+            FLOOR: 0,
+            WALL: 1,
+            STAIRS: 2
+        };
+
+        // Entity types
+        const ENTITY_TYPES = {
+            PLAYER: 0,
+            MONSTER: 1,
+            HEALTH_POTION: 2,
+            TREASURE: 3
+        };
+
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // UI elements
+        const levelDisplay = document.getElementById('level');
+        const gpDisplay = document.getElementById('gp');
+        const floorDisplay = document.getElementById('floor');
+        const healthDisplay = document.getElementById('health');
+        const maxHealthDisplay = document.getElementById('max-health');
+        const attackDisplay = document.getElementById('attack');
+        const defenseDisplay = document.getElementById('defense');
+        const xpDisplay = document.getElementById('xp');
+        const xpToLevelDisplay = document.getElementById('xp-to-level');
+        const gameLogElement = document.getElementById('gameLog');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const saveGameBtn = document.getElementById('saveGameBtn');
+        const loadGameBtn = document.getElementById('loadGameBtn');
+
+        // Colors
+        const COLORS = {
+            floor: '#333',
+            wall: '#555',
+            stairs: '#ff0',
+            player: '#0f0',
+            monster: '#f00',
+            healthPotion: '#f0f',
+            treasure: '#4fade8',
+            text: '#fff',
+            shadow: 'rgba(0, 0, 0, 0.7)',
+            unexplored: '#111',
+            explored: '#222'
+        };
+
+        // Initialize game
+        function initGame() {
+            gameState = {
+                player: {
+                    x: 0,
+                    y: 0,
+                    health: 100,
+                    maxHealth: 100,
+                    attack: 10,
+                    defense: 5,
+                    xp: 0,
+                    gp: 0,
+                    level: 1,
+                    xpToLevel: 100
+                },
+                currentFloor: 1,
+                map: [],
+                entities: [],
+                gameLog: [],
+                discoveredTiles: Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(false)),
+                visibleTiles: Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(false))
+            };
+            
+            generateMap();
+            placePlayer();
+            placeStairs();
+            populateEntities();
+            
+            updateUI();
+            render();
+            
+            addToLog('Welcome to the dungeon!');
+        }
+
+        // Generate a random map using cellular automata
+        function generateMap() {
+            // First pass: random noise
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                gameState.map[y] = [];
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    // Make sure borders are walls
+                    if (x === 0 || y === 0 || x === MAP_WIDTH - 1 || y === MAP_HEIGHT - 1) {
+                        gameState.map[y][x] = TILE_TYPES.WALL;
+                    } else {
+                        gameState.map[y][x] = Math.random() < 0.45 ? TILE_TYPES.WALL : TILE_TYPES.FLOOR;
+                    }
+                }
+            }
+            
+            // Second pass: cellular automata smoothing
+            for (let i = 0; i < 5; i++) {
+                let newMap = [];
+                for (let y = 0; y < MAP_HEIGHT; y++) {
+                    newMap[y] = [];
+                    for (let x = 0; x < MAP_WIDTH; x++) {
+                        if (x === 0 || y === 0 || x === MAP_WIDTH - 1 || y === MAP_HEIGHT - 1) {
+                            newMap[y][x] = TILE_TYPES.WALL;
+                            continue;
+                        }
+                        
+                        let wallCount = 0;
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                if (dx === 0 && dy === 0) continue;
+                                if (gameState.map[y + dy][x + dx] === TILE_TYPES.WALL) {
+                                    wallCount++;
+                                }
+                            }
+                        }
+                        
+                        if (gameState.map[y][x] === TILE_TYPES.WALL) {
+                            newMap[y][x] = wallCount >= 4 ? TILE_TYPES.WALL : TILE_TYPES.FLOOR;
+                        } else {
+                            newMap[y][x] = wallCount >= 5 ? TILE_TYPES.WALL : TILE_TYPES.FLOOR;
+                        }
+                    }
+                }
+                gameState.map = newMap;
+            }
+            
+            // Ensure all floor tiles are reachable (flood fill)
+            let startX, startY;
+            do {
+                startX = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+                startY = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+            } while (gameState.map[startY][startX] !== TILE_TYPES.FLOOR);
+            
+            let visited = Array(MAP_HEIGHT).fill().map(() => Array(MAP_WIDTH).fill(false));
+            let queue = [{x: startX, y: startY}];
+            visited[startY][startX] = true;
+            let floorCount = 0;
+            
+            while (queue.length > 0) {
+                let {x, y} = queue.shift();
+                floorCount++;
+                
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (Math.abs(dx) === Math.abs(dy)) continue;
+                        let nx = x + dx;
+                        let ny = y + dy;
+                        
+                        if (nx >= 1 && nx < MAP_WIDTH - 1 && ny >= 1 && ny < MAP_HEIGHT - 1 && 
+                            !visited[ny][nx] && gameState.map[ny][nx] === TILE_TYPES.FLOOR) {
+                            visited[ny][nx] = true;
+                            queue.push({x: nx, y: ny});
+                        }
+                    }
+                }
+            }
+            
+            // If less than 30% of the map is accessible, regenerate
+            let totalFloorTiles = 0;
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    if (gameState.map[y][x] === TILE_TYPES.FLOOR) totalFloorTiles++;
+                }
+            }
+            
+            if (floorCount / totalFloorTiles < 0.3) {
+                generateMap();
+                return;
+            }
+            
+            // Remove unreachable areas
+            for (let y = 1; y < MAP_HEIGHT - 1; y++) {
+                for (let x = 1; x < MAP_WIDTH - 1; x++) {
+                    if (gameState.map[y][x] === TILE_TYPES.FLOOR && !visited[y][x]) {
+                        gameState.map[y][x] = TILE_TYPES.WALL;
+                    }
+                }
+            }
+        }
+
+        // Place the player in a random floor location
+        function placePlayer() {
+            let placed = false;
+            while (!placed) {
+                let x = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+                let y = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+                
+                if (gameState.map[y][x] === TILE_TYPES.FLOOR) {
+                    gameState.player.x = x;
+                    gameState.player.y = y;
+                    placed = true;
+                    
+                    // Mark surrounding tiles as discovered and visible
+                    updateFOV();
+                }
+            }
+        }
+
+        // Place stairs in a random floor location far from the player
+        function placeStairs() {
+            let placed = false;
+            let attempts = 0;
+            
+            while (!placed && attempts < 100) {
+                attempts++;
+                let x = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+                let y = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+                
+                if (gameState.map[y][x] === TILE_TYPES.FLOOR && 
+                    (Math.abs(x - gameState.player.x) > 5 || Math.abs(y - gameState.player.y) > 5)) {
+                    // Remove any existing stairs
+                    for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+                        for (let tx = 0; tx < MAP_WIDTH; tx++) {
+                            if (gameState.map[ty][tx] === TILE_TYPES.STAIRS) {
+                                gameState.map[ty][tx] = TILE_TYPES.FLOOR;
+                            }
+                        }
+                    }
+                    
+                    gameState.map[y][x] = TILE_TYPES.STAIRS;
+                    placed = true;
+                }
+            }
+            
+            if (!placed) {
+                // Fallback placement if we couldn't find a distant spot
+                for (let y = 1; y < MAP_HEIGHT - 1; y++) {
+                    for (let x = 1; x < MAP_WIDTH - 1; x++) {
+                        if (gameState.map[y][x] === TILE_TYPES.FLOOR && 
+                            (x !== gameState.player.x || y !== gameState.player.y)) {
+                            gameState.map[y][x] = TILE_TYPES.STAIRS;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Populate the map with entities (monsters, items)
+        function populateEntities() {
+            gameState.entities = [];
+            
+            // Add player entity
+            gameState.entities.push({
+                type: ENTITY_TYPES.PLAYER,
+                x: gameState.player.x,
+                y: gameState.player.y
+            });
+            
+            // Add monsters
+            let monsterCount = 5 + Math.floor(gameState.currentFloor * 1.5);
+            for (let i = 0; i < monsterCount; i++) {
+                let placed = false;
+                let attempts = 0;
+                
+                while (!placed && attempts < 100) {
+                    attempts++;
+                    let x = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+                    let y = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+                    
+                    if (gameState.map[y][x] === TILE_TYPES.FLOOR && 
+                        (Math.abs(x - gameState.player.x) > 3 || Math.abs(y - gameState.player.y) > 3) &&
+                        !entityAt(x, y)) {
+                        
+                        let monsterLevel = Math.max(1, Math.floor(gameState.currentFloor / 2));
+                        let health = 20 + monsterLevel * 10;
+                        let attack = 5 + monsterLevel * 2;
+                        let defense = 0 + monsterLevel;
+                        let xpValue = 10 + monsterLevel * 5;
+                        let gpValue = 5 + monsterLevel * 2;
+                        
+                        gameState.entities.push({
+                            type: ENTITY_TYPES.MONSTER,
+                            x: x,
+                            y: y,
+                            health: health,
+                            maxHealth: health,
+                            attack: attack,
+                            defense: defense,
+                            xpValue: xpValue,
+                            gpValue: gpValue
+                        });
+                        placed = true;
+                    }
+                }
+            }
+            
+            // Add health potions
+            let potionCount = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < potionCount; i++) {
+                let placed = false;
+                let attempts = 0;
+                
+                while (!placed && attempts < 100) {
+                    attempts++;
+                    let x = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+                    let y = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+                    
+                    if (gameState.map[y][x] === TILE_TYPES.FLOOR && 
+                        !entityAt(x, y)) {
+                        gameState.entities.push({
+                            type: ENTITY_TYPES.HEALTH_POTION,
+                            x: x,
+                            y: y,
+                            healAmount: 20 + Math.floor(Math.random() * 30)
+                        });
+                        placed = true;
+                    }
+                }
+            }
+
+            // Add treasure
+            let treasureCount = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < treasureCount; i++) {
+                let placed = false;
+                let attempts = 0;
+                
+                while (!placed && attempts < 100) {
+                    attempts++;
+                    let x = Math.floor(Math.random() * (MAP_WIDTH - 2)) + 1;
+                    let y = Math.floor(Math.random() * (MAP_HEIGHT - 2)) + 1;
+                    
+                    if (gameState.map[y][x] === TILE_TYPES.FLOOR && 
+                        !entityAt(x, y)) {
+                        gameState.entities.push({
+                            type: ENTITY_TYPES.TREASURE,
+                            x: x,
+                            y: y,
+                            value: 10 + Math.floor(Math.random() * 50)
+                        });
+                        placed = true;
+                    }
+                }
+            }
+        }
+
+        // Check if there's an entity at a given position
+        function entityAt(x, y) {
+            for (let entity of gameState.entities) {
+                if (entity.x === x && entity.y === y) {
+                    return entity;
+                }
+            }
+            return null;
+        }
+
+        // Update field of view
+        function updateFOV() {
+            // Reset visible tiles
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    gameState.visibleTiles[y][x] = false;
+                }
+            }
+            
+            // Simple FOV algorithm
+            let playerX = gameState.player.x;
+            let playerY = gameState.player.y;
+            let radius = 8;
+            
+            // Mark tiles around player as visible
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    let x = playerX + dx;
+                    let y = playerY + dy;
+                    
+                    if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+                        // If tile is within radius and line of sight is clear
+                        if (dx*dx + dy*dy <= radius*radius && hasLineOfSight(playerX, playerY, x, y)) {
+                            gameState.visibleTiles[y][x] = true;
+                            gameState.discoveredTiles[y][x] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if there's line of sight between two points
+        function hasLineOfSight(x1, y1, x2, y2) {
+            let dx = Math.abs(x2 - x1);
+            let dy = Math.abs(y2 - y1);
+            let sx = (x1 < x2) ? 1 : -1;
+            let sy = (y1 < y2) ? 1 : -1;
+            let err = dx - dy;
+            
+            while (true) {
+                // If we've reached the destination
+                if (x1 === x2 && y1 === y2) return true;
+                
+                // If we hit a wall
+                if (gameState.map[y1][x1] === TILE_TYPES.WALL) return false;
+                
+                let e2 = 2 * err;
+                if (e2 > -dy) {
+                    err -= dy;
+                    x1 += sx;
+                }
+                if (e2 < dx) {
+                    err += dx;
+                    y1 += sy;
+                }
+            }
+        }
+
+        // Move player
+        function movePlayer(dx, dy) {
+            let newX = gameState.player.x + dx;
+            let newY = gameState.player.y + dy;
+            
+            // Check bounds
+            if (newX < 0 || newX >= MAP_WIDTH || newY < 0 || newY >= MAP_HEIGHT) {
+                return false;
+            }
+            
+            // Check wall collision
+            if (gameState.map[newY][newX] === TILE_TYPES.WALL) {
+                return false;
+            }
+            
+            // Check entity collision
+            let entity = entityAt(newX, newY);
+            if (entity) {
+                if (entity.type === ENTITY_TYPES.MONSTER) {
+                    attackMonster(entity);
+                } else if (entity.type === ENTITY_TYPES.HEALTH_POTION) {
+                    pickUpHealthPotion(entity);
+                }else if (entity.type === ENTITY_TYPES.TREASURE) {
+                    gameState.player.gp += entity.value;
+                    
+                    pickUpTreasure(entity);
+                    // Remove treasure from entities
+                    gameState.entities = gameState.entities.filter(e => e !== entity);
+                }
+                return true;
+            }
+            
+            // Check stairs
+            if (gameState.map[newY][newX] === TILE_TYPES.STAIRS) {
+                descendStairs();
+                return true;
+            }
+            
+            // Move player
+            gameState.player.x = newX;
+            gameState.player.y = newY;
+            
+            // Update player entity position
+            for (let e of gameState.entities) {
+                if (e.type === ENTITY_TYPES.PLAYER) {
+                    e.x = newX;
+                    e.y = newY;
+                    break;
+                }
+            }
+            
+            // Update FOV
+            updateFOV();
+            
+            // Move monsters
+            moveMonsters();
+            
+            return true;
+        }
+
+        // Attack a monster
+        function attackMonster(monster) {
+            let playerDamage = Math.max(1, gameState.player.attack - monster.defense + Math.floor(Math.random() * 3) - 1);
+            monster.health -= playerDamage;
+            
+            addToLog(`You hit the monster for ${playerDamage} damage!`);
+            
+            if (monster.health <= 0) {
+                // Monster dies
+                addToLog(`You defeated the monster! Gained ${monster.xpValue} XP and ${monster.gpValue} GP.`);
+                gameState.player.xp += monster.xpValue;
+                gameState.player.gp += monster.gpValue;
+                
+                // Remove monster from entities
+                gameState.entities = gameState.entities.filter(e => e !== monster);
+                
+                // Check level up
+                checkLevelUp();
+            } else {
+                // Monster counterattacks
+                let monsterDamage = Math.max(1, monster.attack - gameState.player.defense + Math.floor(Math.random() * 3) - 1);
+                gameState.player.health -= monsterDamage;
+                
+                addToLog(`The monster hits you for ${monsterDamage} damage!`);
+                
+                if (gameState.player.health <= 0) {
+                    gameOver();
+                }
+            }
+            
+            updateUI();
+        }
+
+        // Pick up a health potion
+        function pickUpHealthPotion(potion) {
+            let healAmount = potion.healAmount;
+            gameState.player.health = Math.min(gameState.player.health + healAmount, gameState.player.maxHealth);
+            
+            addToLog(`You drank a health potion and recovered ${healAmount} health!`);
+            
+            // Remove potion from entities
+            gameState.entities = gameState.entities.filter(e => e !== potion);
+            
+            updateUI();
+        }
+
+        // Pick up treasure
+        function pickUpTreasure(treasure) {
+            gameState.player.gp += treasure.value;
+            addToLog(`You found ${treasure.value} gold!`);
+            
+            // Remove treasure from entities
+            gameState.entities = gameState.entities.filter(e => e !== treasure);
+            
+            updateUI();
+        }
+
+        // Descend stairs to next floor
+        function descendStairs() {
+            gameState.currentFloor++;
+            addToLog(`You descend to floor ${gameState.currentFloor}...`);
+            
+            generateMap();
+            placePlayer();
+            placeStairs();
+            populateEntities();
+            
+            updateUI();
+        }
+
+        // Move monsters
+        function moveMonsters() {
+            for (let entity of gameState.entities) {
+                if (entity.type === ENTITY_TYPES.MONSTER) {
+                    // Simple AI: move toward player if in line of sight
+                    if (gameState.visibleTiles[entity.y][entity.x]) {
+                        let dx = 0;
+                        let dy = 0;
+                        
+                        if (Math.random() < 0.7) { // 70% chance to move toward player
+                            if (entity.x < gameState.player.x) dx = 1;
+                            else if (entity.x > gameState.player.x) dx = -1;
+                            
+                            if (entity.y < gameState.player.y) dy = 1;
+                            else if (entity.y > gameState.player.y) dy = -1;
+                            
+                            // Randomize which axis to move on
+                            if (dx !== 0 && dy !== 0) {
+                                if (Math.random() < 0.5) dx = 0;
+                                else dy = 0;
+                            }
+                        } else { // 30% chance to move randomly
+                            let dir = Math.floor(Math.random() * 4);
+                            if (dir === 0) dx = 1;
+                            else if (dir === 1) dx = -1;
+                            else if (dir === 2) dy = 1;
+                            else if (dir === 3) dy = -1;
+                        }
+                        
+                        let newX = entity.x + dx;
+                        let newY = entity.y + dy;
+                        
+                        // Check if move is valid
+                        if (newX >= 0 && newX < MAP_WIDTH && newY >= 0 && newY < MAP_HEIGHT &&
+                            gameState.map[newY][newX] !== TILE_TYPES.WALL && 
+                            !entityAt(newX, newY)) {
+                            entity.x = newX;
+                            entity.y = newY;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if player should level up
+        function checkLevelUp() {
+            if (gameState.player.xp >= gameState.player.xpToLevel) {
+                gameState.player.level++;
+                gameState.player.xp -= gameState.player.xpToLevel;
+                gameState.player.xpToLevel = Math.floor(gameState.player.xpToLevel * 1.5);
+                
+                // Improve stats
+                gameState.player.maxHealth += 20;
+                gameState.player.health = gameState.player.maxHealth;
+                gameState.player.attack += 3;
+                gameState.player.defense += 2;
+                
+                addToLog(`You leveled up to level ${gameState.player.level}!`);
+                updateUI();
+            }
+        }
+
+        // Game over
+        function gameOver() {
+            addToLog('You have died! Game over.');
+            addToLog('Press "New Game" to start again.');
+            
+            // Disable movement
+            document.removeEventListener('keydown', handleKeyPress);
+        }
+
+        // Add message to game log
+        function addToLog(message) {
+            gameState.gameLog.push(message);
+            if (gameState.gameLog.length > 10) {
+                gameState.gameLog.shift();
+            }
+            
+            // Update log display
+            gameLogElement.innerHTML = gameState.gameLog.join('<br>');
+            gameLogElement.scrollTop = gameLogElement.scrollHeight;
+        }
+
+        // Update UI displays
+        function updateUI() {
+            levelDisplay.textContent = gameState.player.level;
+            floorDisplay.textContent = gameState.currentFloor;
+            healthDisplay.textContent = gameState.player.health;
+            maxHealthDisplay.textContent = gameState.player.maxHealth;
+            attackDisplay.textContent = gameState.player.attack;
+            defenseDisplay.textContent = gameState.player.defense;
+            xpDisplay.textContent = gameState.player.xp;
+            xpToLevelDisplay.textContent = gameState.player.xpToLevel;
+            gpDisplay.textContent = gameState.player.gp;
+
+        }
+
+        // Render game
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Draw map
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+                    if (gameState.discoveredTiles[y][x]) {
+                        let tileX = x * TILE_SIZE;
+                        let tileY = y * TILE_SIZE;
+                        
+                        // Draw background (explored but not visible)
+                        if (!gameState.visibleTiles[y][x]) {
+                            ctx.fillStyle = COLORS.explored;
+                            ctx.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+                            continue;
+                        }
+                        
+                        // Draw visible tiles
+                        switch (gameState.map[y][x]) {
+                            case TILE_TYPES.FLOOR:
+                                ctx.fillStyle = COLORS.floor;
+                                break;
+                            case TILE_TYPES.WALL:
+                                ctx.fillStyle = COLORS.wall;
+                                break;
+                            case TILE_TYPES.STAIRS:
+                                ctx.fillStyle = COLORS.stairs;
+                                break;
+                        }
+                        ctx.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+                    } else {
+                        // Unexplored tiles
+                        ctx.fillStyle = COLORS.unexplored;
+                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            }
+            
+            // Draw entities
+            for (let entity of gameState.entities) {
+                if (!gameState.visibleTiles[entity.y][entity.x]) continue;
+                
+                let tileX = entity.x * TILE_SIZE;
+                let tileY = entity.y * TILE_SIZE;
+                
+                switch (entity.type) {
+                    case ENTITY_TYPES.PLAYER:
+                        ctx.fillStyle = COLORS.player;
+                        break;
+                    case ENTITY_TYPES.MONSTER:
+                        ctx.fillStyle = COLORS.monster;
+                        break;
+                    case ENTITY_TYPES.HEALTH_POTION:
+                        ctx.fillStyle = COLORS.healthPotion;
+                        break;
+                    case ENTITY_TYPES.TREASURE:
+                        ctx.fillStyle = COLORS.treasure;
+                        break;
+                }
+                
+                ctx.fillRect(tileX + 4, tileY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                
+                // Draw health bars for monsters
+                if (entity.type === ENTITY_TYPES.MONSTER) {
+                    let healthPercent = entity.health / entity.maxHealth;
+                    ctx.fillStyle = '#f00';
+                    ctx.fillRect(tileX + 4, tileY + 2, (TILE_SIZE - 8) * healthPercent, 2);
+                }
+            }
+            
+            // Draw player health bar
+            let playerEntity = gameState.entities.find(e => e.type === ENTITY_TYPES.PLAYER);
+            if (playerEntity) {
+                let tileX = playerEntity.x * TILE_SIZE;
+                let tileY = playerEntity.y * TILE_SIZE;
+                let healthPercent = gameState.player.health / gameState.player.maxHealth;
+                ctx.fillStyle = '#0f0';
+                ctx.fillRect(tileX + 4, tileY + 2, (TILE_SIZE - 8) * healthPercent, 2);
+            }
+        }
+
+        // Save game to local storage
+        function saveGame() {
+            try {
+                localStorage.setItem('roguelikeSave', JSON.stringify(gameState));
+                addToLog('Game saved successfully!');
+            } catch (e) {
+                addToLog('Failed to save game: ' + e.message);
+            }
+        }
+
+        // Load game from local storage
+        function loadGame() {
+            try {
+                let savedGame = localStorage.getItem('roguelikeSave');
+                if (savedGame) {
+                    gameState = JSON.parse(savedGame);
+                    addToLog('Game loaded successfully!');
+                    updateUI();
+                    render();
+                } else {
+                    addToLog('No saved game found.');
+                }
+            } catch (e) {
+                addToLog('Failed to load game: ' + e.message);
+            }
+        }
+
+        // Handle keyboard input
+        function handleKeyPress(e) {
+            let moved = false;
+            
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    moved = movePlayer(0, -1);
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    moved = movePlayer(0, 1);
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    moved = movePlayer(-1, 0);
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    moved = movePlayer(1, 0);
+                    break;
+            }
+            
+            if (moved) {
+                render();
+            }
+            
+            // Prevent default for movement keys
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'W', 'a', 'A', 's', 'S', 'd', 'D'].includes(e.key)) {
+                e.preventDefault();
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', handleKeyPress);
+        newGameBtn.addEventListener('click', initGame);
+        saveGameBtn.addEventListener('click', saveGame);
+        loadGameBtn.addEventListener('click', loadGame);
+
+        // Start the game
+        initGame();
+    </script>
+</body>
+</html>
